@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>AbdellaFit</title>
+<link rel="manifest" href="/manifest.json"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="AbdellaFit"/>
+<meta name="theme-color" content="#FF6B1A"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{background:#0E0800;color:#FFF0DC;font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;}
+  ::-webkit-scrollbar{width:4px;}
+  ::-webkit-scrollbar-track{background:#1A0E03;}
+  ::-webkit-scrollbar-thumb{background:#8C4010;border-radius:4px;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes popIn{from{opacity:0;transform:scale(0.92)}to{opacity:1;transform:scale(1)}}
+  .fade-up{animation:fadeUp 0.35s ease both;}
+  .pop-in{animation:popIn 0.3s ease both;}
+  input[type=number]{-moz-appearance:textfield;}
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+// ─── PALETTE ────────────────────────────────────────────────────────────────
+const C = {
+  bg:'#0E0800', surface:'#1A0E03', card:'#200F04',
+  border:'#4A2208', borderHi:'#8C4010',
+  orange:'#FF6B1A', amber:'#FF9A3C', terra:'#E84A0A',
+  cream:'#FFF0DC', muted:'#CC8855', dim:'#7A4E28', gold:'#FFB84A',
+  rose:'#FF7A6B', roseLight:'#FFB0A8',
+};
+
+// ─── PROFILES ────────────────────────────────────────────────────────────────
+const PROFILE_DEFS = {
+  miovida: { id:'miovida', name:'Miovida', emoji:'🔥', color:C.orange,
+    defaultGoal:85, defaultStart:100, defaultLevel:'intermediaire', defaultDuration:60 },
+  miamore: { id:'miamore', name:'Miamore', emoji:'🌸', color:C.rose,
+    defaultGoal:60, defaultStart:70,  defaultLevel:'debutant',      defaultDuration:45 },
+};
+
+// ─── LOCALSTORAGE ───────────────────────────────────────────────────────────
+const LS = {
+  get: (k, fb) => { try { const v=localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch{ return fb; } },
+  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch{} },
+};
+
+// ─── EXERCISE BANK ──────────────────────────────────────────────────────────
+const BANK = {
+  push:{
+    compound:{
+      debutant:[
+        {name:"Développé machine pectoraux",tip:"Dos plaqué, poussée régulière"},
+        {name:"Pompes (genoux si besoin)",tip:"Corps gainé, descente 2s"},
+        {name:"Presse épaules machine",tip:"Poignées à hauteur d'épaules"},
+        {name:"Développé haltères légers à plat",tip:"Coudes à 45°, pas d'hyperextension"},
+      ],
+      intermediaire:[
+        {name:"Développé couché barre",tip:"Prise légèrement plus large que les épaules"},
+        {name:"Développé incliné haltères",tip:"Angle 30–45°, étirement complet en bas"},
+        {name:"Développé militaire haltères",tip:"Core gainé, ne pas cambrer"},
+        {name:"Dips barres parallèles",tip:"Légèrement penché avant pour plus de pec"},
+      ],
+      expert:[
+        {name:"Développé couché (pause 1s)",tip:"Pause sur poitrine, drive explosif"},
+        {name:"Développé incliné barre",tip:"Contrôle total, tempo 4–1–1"},
+        {name:"Développé militaire barre debout",tip:"Pas d'élan des jambes"},
+        {name:"Dips lestés",tip:"Amplitude complète, descente 3s"},
+      ]
+    },
+    isolation:{
+      debutant:[
+        {name:"Écartés machine (pec deck)",tip:"Légère flexion coudes, serrer en haut"},
+        {name:"Pushdown triceps (barre)",tip:"Coudes fixes contre les hanches"},
+        {name:"Élévations latérales légères",tip:"Ne pas dépasser l'épaule"},
+      ],
+      intermediaire:[
+        {name:"Écarté poulie basse croisée",tip:"Étirement max en bas, contraction en haut"},
+        {name:"Tricep pushdown corde",tip:"Écarter la corde en bas"},
+        {name:"Élévations latérales haltères",tip:"Léger, 15–20 reps"},
+        {name:"Extension triceps au-dessus",tip:"Coudes près des oreilles"},
+      ],
+      expert:[
+        {name:"Écarté incliné haltères",tip:"Descente profonde, supination légère"},
+        {name:"Skullcrusher barre EZ",tip:"Coudes fixes, barre vers le front"},
+        {name:"Élévations latérales câble 1 bras",tip:"Contraction isométrique 1s en haut"},
+        {name:"Overhead tricep câble (corde)",tip:"Full stretch, contraction max"},
+      ]
+    },
+    finisher:{
+      debutant:  {name:"Circuit Pompes",   tip:"Pendant 10 min : fais des séries de pompes jusqu'à l'échec, repose-toi 60s, recommence. Compte le nombre de séries."},
+      intermediaire:{name:"HIIT Circuit",  tip:"4 rounds sans chrono : 30s Push-ups → 30s Mountain climbers → 30s Repos. Intensité max sur les 30s actives."},
+      expert:    {name:"Tabata Burpees",   tip:"8 rounds Tabata : 20s Burpees effort maximum → 10s Repos. Total : 4 min. Puis 6 min de récup active (marche, étirements)."},
+    }
+  },
+  pull:{
+    compound:{
+      debutant:[
+        {name:"Tirage vertical machine (large)",tip:"Descendre jusqu'au menton"},
+        {name:"Rowing machine assis",tip:"Dos droit, tirer les coudes en arrière"},
+        {name:"Tirage horizontal poulie basse",tip:"Étirement complet vers l'avant"},
+        {name:"Shrug machine",tip:"1s de pause en haut"},
+      ],
+      intermediaire:[
+        {name:"Tractions assistées / Tirage poulie",tip:"Grip large, omoplate rétractée"},
+        {name:"Rowing assis câble",tip:"Coudes collés, tirer vers le nombril"},
+        {name:"Tirage poitrine poulie (grip neutre)",tip:"Tirer vers le sternum"},
+        {name:"Rowing 1 bras haltère",tip:"Dos parallèle, pleine amplitude"},
+      ],
+      expert:[
+        {name:"Tractions pronation lestées",tip:"Dead hang, tirer jusqu'au menton"},
+        {name:"Soulevé de terre conventionnel",tip:"Barre sur tibias, dos plat"},
+        {name:"Rowing barre penché (Yates)",tip:"Dos à 70°, charge lourde"},
+        {name:"Tirage nuque poulie large",tip:"Contrôle strict, ne pas balancer"},
+      ]
+    },
+    isolation:{
+      debutant:[
+        {name:"Face pull élastique / câble",tip:"Corde vers le visage, coudes hauts"},
+        {name:"Curl haltères assis (alterné)",tip:"Supination complète en montant"},
+        {name:"Curl pupitre machine",tip:"Amplitude complète, pause en bas"},
+      ],
+      intermediaire:[
+        {name:"Face pull corde haute poulie",tip:"Coudes à hauteur des épaules"},
+        {name:"Curl barre droite",tip:"Coudes fixes, ne pas balancer"},
+        {name:"Curl marteau haltères",tip:"Brachioradial + long supinateur"},
+        {name:"Tirage droit haltère",tip:"Coudes montant au-dessus des épaules"},
+      ],
+      expert:[
+        {name:"Face pull + rotation externe",tip:"Finir avec les poings vers l'extérieur"},
+        {name:"Curl araignée barre EZ",tip:"Poitrine contre l'inclinaison"},
+        {name:"Curl câble 1 bras (concentration)",tip:"Contraction isométrique 1s"},
+        {name:"Shrug barre lourd",tip:"3s de contraction en haut"},
+      ]
+    },
+    finisher:{
+      debutant:  {name:"Circuit Tirage",  tip:"Pendant 10 min : séries de tirage élastique jusqu'à l'échec, repose-toi 60s, recommence. Dos droit à chaque rep."},
+      intermediaire:{name:"HIIT Circuit", tip:"4 rounds : 30s Renegade rows → 30s Corde à sauter → 30s Repos. Garde la cadence sur toute la durée."},
+      expert:    {name:"Tractions max",   tip:"Pendant 10 min : tractions jusqu'à l'échec, repose-toi 90s, recommence. Note le nombre de reps par série pour suivre ta progression."},
+    }
+  },
+  legs:{
+    compound:{
+      debutant:[
+        {name:"Leg Press 45°",tip:"Pieds à largeur d'épaules"},
+        {name:"Hack squat machine",tip:"Dos plaqué, descente lente"},
+        {name:"Squat gobelet haltère léger",tip:"Haltère contre la poitrine"},
+        {name:"Step-ups haltères légers",tip:"Pied entier sur le banc"},
+      ],
+      intermediaire:[
+        {name:"Back squat barre",tip:"Descente sous parallèle si mobilité ok"},
+        {name:"Romanian Deadlift haltères",tip:"Ischio étirés, dos plat"},
+        {name:"Leg Press pieds larges",tip:"Pieds écartés et hauts = plus de fessiers"},
+        {name:"Fentes marchées haltères",tip:"Grand pas, genou arrière proche du sol"},
+      ],
+      expert:[
+        {name:"Back squat barre (paused)",tip:"2s de pause en bas, drive explosif"},
+        {name:"Deadlift roumain barre",tip:"Amplitude maximale"},
+        {name:"Front squat barre",tip:"Coudes hauts, core sous pression"},
+        {name:"Fentes bulgares barre",tip:"Pied arrière surélevé, profondeur max"},
+      ]
+    },
+    isolation:{
+      debutant:[
+        {name:"Leg Extension machine",tip:"Pause 1s en haut, descente contrôlée"},
+        {name:"Leg Curl couché machine",tip:"Hanches plaquées, amplitude complète"},
+        {name:"Mollets machine assis",tip:"Amplitude maximale, 2s de pause en bas"},
+      ],
+      intermediaire:[
+        {name:"Leg Extension machine",tip:"Tempo 2–1–2, brûlure en fin de série"},
+        {name:"Leg Curl couché machine",tip:"Contraction max, ne pas laisser tomber"},
+        {name:"Fentes bulgares haltères",tip:"4–6 reps / jambe, charge progressive"},
+        {name:"Mollets debout",tip:"Full ROM, pause 2s en bas"},
+      ],
+      expert:[
+        {name:"Leg Extension (drop set)",tip:"Drop 20% à chaque série"},
+        {name:"Leg Curl debout (1 jambe)",tip:"Isolation totale, étirement complet"},
+        {name:"Good morning barre légère",tip:"Dos strictement plat"},
+        {name:"Mollets debout lourds",tip:"Full amplitude, pause bas"},
+      ]
+    },
+    finisher:{
+      debutant:  {name:"Circuit Squats",  tip:"Pendant 10 min : 20 squats à vide + 10 fentes par jambe, repose-toi 60s, recommence. Genoux dans l'axe des orteils."},
+      intermediaire:{name:"HIIT Jambes",  tip:"4 rounds : 30s Squat jumps → 30s Step-ups → 30s Repos. Atterrissage amorti sur les squat jumps, genoux fléchis."},
+      expert:    {name:"Explosif Jambes", tip:"Pendant 15 min : 10 box jumps + 10 squat jumps, repose-toi 45s, recommence. Explosivité max à chaque saut, réception souple."},
+    }
+  },
+  full:{
+    compound:{
+      debutant:[
+        {name:"Squat gobelet haltère léger",tip:"Haltère contre la poitrine, talons au sol"},
+        {name:"Développé machine pectoraux",tip:"Régler le siège, poussée symétrique"},
+        {name:"Tirage horizontal poulie",tip:"Dos droit, tirer les coudes en arrière"},
+        {name:"Hip thrust poids de corps",tip:"Épaules sur banc, fessiers serrés en haut"},
+      ],
+      intermediaire:[
+        {name:"Squat gobelet (charge progressive)",tip:"Talons, genoux ouverts, dos droit"},
+        {name:"Développé haltères à plat",tip:"Étirement en bas, contraction forte"},
+        {name:"Rowing 1 bras haltère",tip:"Pleine amplitude, omoplate active"},
+        {name:"Romanian Deadlift haltères",tip:"Charnière hanche, dos plat"},
+      ],
+      expert:[
+        {name:"Squat barre (back squat)",tip:"Profondeur maximale, tempo contrôlé"},
+        {name:"Développé couché barre",tip:"Charge lourde, 5–6 reps"},
+        {name:"Rowing barre penché",tip:"Dos horizontal, charge lourde"},
+        {name:"Deadlift conventionnel",tip:"Drive des talons, barre collée aux tibias"},
+      ]
+    },
+    isolation:{
+      debutant:[
+        {name:"Crunch sol",tip:"Mains sous la nuque, expiration en montant"},
+        {name:"Planche (30s)",tip:"Hanche neutre, respiration abdominale"},
+        {name:"Russian Twist poids de corps",tip:"Pieds décollés, rotation lente"},
+      ],
+      intermediaire:[
+        {name:"Crunch câble / sol",tip:"Contraction forte en haut, descente lente"},
+        {name:"Relevé de jambes allongé",tip:"Bas du dos plaqué au sol"},
+        {name:"Planche dynamique",tip:"Avant-bras → mains → avant-bras"},
+        {name:"Russian Twist (médecine ball)",tip:"Obliques, dos légèrement incliné"},
+      ],
+      expert:[
+        {name:"Relevé de jambes suspendu",tip:"Ne pas balancer, focus bas du ventre"},
+        {name:"Ab wheel rollout",tip:"Hanche tendue, rentrer le ventre"},
+        {name:"Hollow body hold (30s)",tip:"Dos plaqué, bras et jambes tendus"},
+        {name:"Dragon flag (progression)",tip:"Contrôle excentrique strict"},
+      ]
+    },
+    finisher:{
+      debutant:  {name:"Cardio Léger",    tip:"Pendant 10 min : 30s jumping jacks → 30s marche sur place → recommence. Objectif : rester en mouvement sans t'arrêter."},
+      intermediaire:{name:"HIIT Full",    tip:"4 rounds : 20s Burpees → 20s Mountain climbers → 20s Repos. Garde la forme sur les burpees même fatigué."},
+      expert:    {name:"Tabata Lestés",   tip:"8 rounds Tabata : 20s Burpees avec gilet lesté → 10s Repos. Total 4 min. Puis 6 min cardio léger pour redescendre la FC."},
+    }
+  }
+};
+
+// ─── PROGRAM BUILDER ────────────────────────────────────────────────────────
+function buildProgram(session, level, duration) {
+  const bank = BANK[session];
+  const cfg = {
+    // Débutant : repos 75s compound, 45s iso → compter ~2.5min/set compound, ~1.5min/set iso
+    // Intermédiaire : repos 90s → ~3min/set compound, ~2min/set iso
+    // Expert : repos 120s → ~3.5min/set compound, ~2min/set iso
+    // On vise 80% du temps disponible pour les exercices, 20% pour transitions/setup
+    45: {warmup:5,  compoundN:2,compoundSets:3,isolN:1,isolSets:2,hasFinisher:false,finMin:0},
+    60: {warmup:8,  compoundN:2,compoundSets:3,isolN:2,isolSets:2,hasFinisher:true, finMin:8},
+    90: {warmup:10, compoundN:3,compoundSets:4,isolN:2,isolSets:3,hasFinisher:true, finMin:12},
+    120:{warmup:10, compoundN:3,compoundSets:4,isolN:3,isolSets:3,hasFinisher:true, finMin:18},
+  }[duration];
+  const reps = {
+    debutant:      {compound:"12–15",isolation:"15–20",rest:{compound:75, isolation:45}},
+    intermediaire: {compound:"8–12", isolation:"12–15",rest:{compound:90, isolation:60}},
+    expert:        {compound:"5–8",  isolation:"10–12",rest:{compound:120,isolation:75}},
+  }[level];
+  const phases = [];
+  phases.push({name:"Échauffement",duration:`${cfg.warmup} min`,exercises:[{
+    name:"Cardio léger + mobilité",sets:1,reps:`${cfg.warmup} min`,rest:0,isSimple:true,
+    tip:level==="debutant"?"Marche rapide ou vélo léger, FC 110–120 bpm":level==="intermediaire"?"Rameur ou vélo, FC 120–130 bpm + mobilité":"Rameur intensité progressive + activation dynamique"
+  }]});
+  const compounds = bank.compound[level].slice(0,cfg.compoundN).map(ex=>({...ex,sets:cfg.compoundSets,reps:reps.compound,rest:reps.rest.compound}));
+  const totalC = Math.round(cfg.compoundN*cfg.compoundSets*(reps.rest.compound/60+1));
+  phases.push({name:"Exercices Compound",duration:`~${totalC} min`,exercises:compounds});
+  const isos = bank.isolation[level].slice(0,cfg.isolN).map(ex=>({...ex,sets:cfg.isolSets,reps:reps.isolation,rest:reps.rest.isolation}));
+  const totalI = Math.round(cfg.isolN*cfg.isolSets*(reps.rest.isolation/60+0.75));
+  phases.push({name:"Isolation & Finition",duration:`~${totalI} min`,exercises:isos});
+  if(cfg.hasFinisher){
+    const fin=bank.finisher[level];
+    phases.push({name:"Finisher",duration:`${cfg.finMin} min`,exercises:[{
+      name:fin.name, tip:fin.tip,
+      sets:1, reps:`${cfg.finMin} min`, rest:0, isSimple:true
+    }]});
+  }
+  return phases;
+}
+
+// ─── SESSIONS CONFIG ─────────────────────────────────────────────────────────
+const SESSIONS = {
+  push:{label:"PUSH", subtitle:"Pectoraux · Épaules · Triceps",color:C.orange,icon:"🔥",emoji:"⬆"},
+  pull:{label:"PULL", subtitle:"Dos · Biceps · Trapèzes",       color:C.amber, icon:"💪",emoji:"⬇"},
+  legs:{label:"LEGS", subtitle:"Quadriceps · Ischio · Fessiers",color:C.terra, icon:"🌶",emoji:"↕"},
+  full:{label:"FULL", subtitle:"Full Body · Abdos · Cardio",    color:C.gold,  icon:"⚡",emoji:"✦"},
+};
+const LEVELS = [
+  {key:"debutant",label:"Débutant",desc:"Machines & corps",badge:"●○○"},
+  {key:"intermediaire",label:"Intermédiaire",desc:"Barre & haltères",badge:"●●○"},
+  {key:"expert",label:"Expert",desc:"Charges lourdes",badge:"●●●"},
+];
+const DURATIONS = [45,60,90,120];
+
+// ─── NOTIFICATION HELPER ─────────────────────────────────────────────────────
+function fireNotif(title, body){
+  if(!('Notification' in window)||Notification.permission!=='granted') return;
+  try{
+    if(navigator.serviceWorker?.controller){
+      navigator.serviceWorker.controller.postMessage({type:'SHOW_NOTIF',title,body});
+    } else {
+      new Notification(title,{body,icon:'/icon.png',badge:'/icon.png'});
+    }
+  }catch(e){}
+}
+
+// ─── REST TIMER ──────────────────────────────────────────────────────────────
+// Uses absolute end-timestamp so background/lock-screen doesn't break it
+function RestTimer({seconds, onDone, exerciseName}){
+  const endRef = useRef(Date.now() + seconds * 1000);
+  const [left, setLeft] = useState(seconds);
+  const tickRef = useRef();
+
+  const tick = useCallback(()=>{
+    const rem = Math.max(0, Math.ceil((endRef.current - Date.now()) / 1000));
+    setLeft(rem);
+    if(rem <= 0){
+      onDone();
+      fireNotif('⏱️ Repos terminé !', exerciseName ? `Prêt pour : ${exerciseName} 💪` : 'C\'est reparti !');
+      return;
+    }
+    tickRef.current = setTimeout(tick, 300);
+  },[onDone, exerciseName]);
+
+  useEffect(()=>{
+    tickRef.current = setTimeout(tick, 100);
+    // Recalculate immediately when screen unlocks / app comes back
+    const onVis = ()=>{ if(!document.hidden){ clearTimeout(tickRef.current); tick(); }};
+    document.addEventListener('visibilitychange', onVis);
+    return()=>{ clearTimeout(tickRef.current); document.removeEventListener('visibilitychange', onVis); };
+  },[tick]);
+
+  const pct=(seconds-left)/seconds, r=22, circ=2*Math.PI*r;
+  return(
+    <div style={{display:"flex",alignItems:"center",gap:14,background:`linear-gradient(135deg,#2A1508,#1C0F05)`,border:`1px solid ${C.orange}44`,borderRadius:12,padding:"10px 16px",marginTop:10}}>
+      <svg width={54} height={54} viewBox="0 0 54 54">
+        <circle cx={27} cy={27} r={r} fill="none" stroke={C.border} strokeWidth={4}/>
+        <circle cx={27} cy={27} r={r} fill="none" stroke={C.orange} strokeWidth={4} strokeDasharray={String(circ)} strokeDashoffset={String(circ*(1-pct))} transform="rotate(-90 27 27)" style={{transition:"stroke-dashoffset 0.3s linear"}}/>
+        <text x={27} y={32} textAnchor="middle" style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,fill:C.cream}}>{left}</text>
+      </svg>
+      <div>
+        <div style={{fontSize:11,color:C.muted,letterSpacing:1}}>RÉCUPÉRATION</div>
+        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,color:C.orange,letterSpacing:2}}>{left}s</div>
+      </div>
+      <button onClick={onDone} style={{marginLeft:"auto",background:"transparent",border:`1px solid ${C.borderHi}`,color:C.muted,borderRadius:8,padding:"4px 12px",cursor:"pointer",fontSize:12}}>Skip</button>
+    </div>
+  );
+}
+
+// ─── EXERCISE CARD ───────────────────────────────────────────────────────────
+function ExerciseCard({ex,color}){
+  const [done,setDone]=useState(new Array(ex.sets).fill(false));
+  const [timer,setTimer]=useState(null);
+  const toggle=i=>{const next=[...done];next[i]=!next[i];setDone(next);if(next[i]&&ex.rest>0)setTimer(ex.rest);};
+  const allDone=done.every(Boolean);
+  return(
+    <div style={{background:allDone?`linear-gradient(135deg,${color}18,${color}08)`:`linear-gradient(135deg,${C.card},#1A1008)`,border:`1px solid ${allDone?color+"66":C.border}`,borderLeft:`3px solid ${allDone?color:C.borderHi}`,borderRadius:12,padding:"14px 16px",marginBottom:10,transition:"all 0.35s"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+        <div style={{flex:1}}>
+          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:17,letterSpacing:1,color:allDone?color:C.cream,lineHeight:1.2}}>{ex.name}</div>
+          <div style={{fontSize:12,color:C.muted,marginTop:4}}>{ex.sets>1?`${ex.sets} séries × ${ex.reps}`:ex.reps}{ex.rest>0&&<span style={{color:C.dim}}> · {ex.rest}s repos</span>}</div>
+          {ex.tip&&<div style={{fontSize:11,color:C.dim,marginTop:5,fontStyle:"italic",lineHeight:1.5,borderLeft:`2px solid ${C.borderHi}`,paddingLeft:8}}>{ex.tip}</div>}
+        </div>
+        {allDone&&<div style={{width:28,height:28,borderRadius:"50%",background:`linear-gradient(135deg,${color},${color}88)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0}}>✓</div>}
+      </div>
+      {!ex.isSimple&&ex.sets>1&&(
+        <div style={{display:"flex",gap:8,marginTop:12,flexWrap:"wrap"}}>
+          {done.map((d,i)=>(<button key={i} onClick={()=>toggle(i)} style={{width:42,height:42,borderRadius:10,border:`2px solid ${d?color:C.border}`,background:d?`linear-gradient(135deg,${color}33,${color}18)`:C.surface,color:d?color:C.dim,fontFamily:"'Bebas Neue',sans-serif",fontSize:15,cursor:"pointer",transition:"all 0.2s"}}>S{i+1}</button>))}
+        </div>
+      )}
+      {ex.isSimple&&(<button onClick={()=>toggle(0)} style={{marginTop:10,padding:"7px 18px",borderRadius:10,border:`1px solid ${done[0]?color:C.borderHi}`,background:done[0]?`${color}22`:C.surface,color:done[0]?color:C.muted,cursor:"pointer",fontSize:12,transition:"all 0.2s"}}>{done[0]?"✓ Complété":"Marquer comme fait"}</button>)}
+      {timer&&<RestTimer seconds={timer} exerciseName={ex.name} onDone={()=>setTimer(null)}/>}
+    </div>
+  );
+}
+
+// ─── WEIGHT CHART (SVG) ──────────────────────────────────────────────────────
+function WeightChart({entries, goal, color}){
+  if(!entries||entries.length===0) return(
+    <div style={{textAlign:"center",padding:"32px 0",color:C.dim,fontSize:13}}>
+      Aucune donnée encore.<br/>Ajoute ton premier poids ci-dessus.
+    </div>
+  );
+  const W=340, H=160, padL=40, padR=16, padT=16, padB=28;
+  const sorted=[...entries].sort((a,b)=>a.date.localeCompare(b.date));
+  const weights=sorted.map(e=>e.weight);
+  const allW=[...weights, goal];
+  const minW=Math.floor(Math.min(...allW)-1), maxW=Math.ceil(Math.max(...allW)+1);
+  const xScale=i=>(sorted.length===1)?padL+(W-padL-padR)/2:padL+(W-padL-padR)*(i/(sorted.length-1));
+  const yScale=w=>padT+(H-padT-padB)*(1-(w-minW)/(maxW-minW));
+  const goalY=yScale(goal);
+  const pts=sorted.map((e,i)=>({x:xScale(i),y:yScale(e.weight),w:e.weight,date:e.date}));
+  const pathD=pts.map((p,i)=>`${i===0?"M":"L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const yTicks=[minW,Math.round((minW+maxW)/2),maxW];
+  const fmtDate=d=>{const p=d.split("-");return`${p[2]}/${p[1]}`;};
+  return(
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{overflow:"visible"}}>
+      {/* Grid */}
+      {yTicks.map(t=>(
+        <g key={t}>
+          <line x1={padL} y1={yScale(t)} x2={W-padR} y2={yScale(t)} stroke={C.border} strokeWidth={1} strokeDasharray="3,3"/>
+          <text x={padL-6} y={yScale(t)+4} textAnchor="end" style={{fontSize:9,fill:C.dim,fontFamily:"'DM Sans',sans-serif"}}>{t}</text>
+        </g>
+      ))}
+      {/* Goal line */}
+      <line x1={padL} y1={goalY} x2={W-padR} y2={goalY} stroke={color} strokeWidth={1.5} strokeDasharray="6,4" opacity={0.6}/>
+      <text x={W-padR+4} y={goalY+4} style={{fontSize:9,fill:color,fontFamily:"'DM Sans',sans-serif"}}>Obj</text>
+      {/* Area under curve */}
+      {pts.length>1&&(
+        <path d={`${pathD} L${pts[pts.length-1].x},${H-padB} L${pts[0].x},${H-padB} Z`}
+          fill={`url(#grad-${color.replace("#","")})`} opacity={0.18}/>
+      )}
+      <defs>
+        <linearGradient id={`grad-${color.replace("#","")}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color}/>
+          <stop offset="100%" stopColor={color} stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      {/* Line */}
+      {pts.length>1&&<path d={pathD} fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"/>}
+      {/* Dots + labels */}
+      {pts.map((p,i)=>(
+        <g key={i}>
+          <circle cx={p.x} cy={p.y} r={5} fill={C.bg} stroke={color} strokeWidth={2.5}/>
+          <circle cx={p.x} cy={p.y} r={2.5} fill={color}/>
+          <text x={p.x} y={p.y-10} textAnchor="middle" style={{fontSize:9,fill:C.muted,fontFamily:"'DM Sans',sans-serif"}}>{p.w}kg</text>
+          {(i===0||i===pts.length-1||pts.length<=5)&&(
+            <text x={p.x} y={H-padB+14} textAnchor="middle" style={{fontSize:8,fill:C.dim,fontFamily:"'DM Sans',sans-serif"}}>{fmtDate(p.date)}</text>
+          )}
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+// ─── PROGRESSION SCREEN ─────────────────────────────────────────────────────
+function Progression({profileId}){
+  const def=PROFILE_DEFS[profileId];
+  const storKey=`abdfit_progress_${profileId}`;
+  const cfgKey=`abdfit_profilecfg_${profileId}`;
+  const [entries,setEntries]=useState(()=>LS.get(storKey,[]));
+  const [cfg,setCfg]=useState(()=>LS.get(cfgKey,{goal:def.defaultGoal,startWeight:def.defaultStart}));
+  const [newW,setNewW]=useState("");
+  const [newD,setNewD]=useState(()=>new Date().toISOString().split("T")[0]);
+  const [editGoal,setEditGoal]=useState(false);
+  const [goalInput,setGoalInput]=useState(String(cfg.goal));
+
+  const saveEntries=e=>{setEntries(e);LS.set(storKey,e);};
+  const addEntry=()=>{
+    const w=parseFloat(newW);
+    if(isNaN(w)||w<20||w>300)return;
+    const next=[...entries.filter(e=>e.date!==newD),{date:newD,weight:w}];
+    saveEntries(next); setNewW("");
+  };
+  const removeEntry=date=>saveEntries(entries.filter(e=>e.date!==date));
+  const saveGoal=()=>{
+    const g=parseFloat(goalInput);
+    if(isNaN(g))return;
+    const nc={...cfg,goal:g};setCfg(nc);LS.set(cfgKey,nc);setEditGoal(false);
+  };
+
+  const sorted=[...entries].sort((a,b)=>b.date.localeCompare(a.date));
+  const latest=sorted[0];
+  const first=entries.length>0?[...entries].sort((a,b)=>a.date.localeCompare(b.date))[0]:null;
+  const diff=latest&&first?+(latest.weight-first.weight).toFixed(1):null;
+  const toGoal=latest?(+(latest.weight-cfg.goal).toFixed(1)):null;
+
+  return(
+    <div style={{padding:"0 18px 40px",maxWidth:480,margin:"0 auto"}}>
+      {/* Stats bar */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:20}} className="fade-up">
+        {[
+          {label:"ACTUEL",value:latest?`${latest.weight}kg`:"—",color:def.color},
+          {label:"VARIATION",value:diff!==null?(diff>0?`+${diff}kg`:`${diff}kg`):"—",color:diff!==null&&diff<0?"#7DFF9A":diff>0?C.terra:C.muted},
+          {label:"OBJECTIF",value:`${cfg.goal}kg`,color:C.gold},
+        ].map(s=>(
+          <div key={s.label} style={{background:`linear-gradient(135deg,${C.card},${C.surface})`,border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 10px",textAlign:"center"}}>
+            <div style={{fontSize:9,letterSpacing:2,color:C.dim,marginBottom:4}}>{s.label}</div>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,color:s.color,letterSpacing:1}}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Objectif edit */}
+      <div style={{marginBottom:16,display:"flex",alignItems:"center",gap:8}} className="fade-up">
+        {editGoal?(
+          <>
+            <input type="number" value={goalInput} onChange={e=>setGoalInput(e.target.value)}
+              style={{flex:1,background:C.surface,border:`1px solid ${C.orange}`,borderRadius:8,padding:"8px 12px",color:C.cream,fontSize:14}}/>
+            <button onClick={saveGoal} style={{padding:"8px 16px",borderRadius:8,background:C.orange,border:"none",color:"#0E0800",fontFamily:"'Bebas Neue',sans-serif",fontSize:14,letterSpacing:1,cursor:"pointer"}}>OK</button>
+            <button onClick={()=>setEditGoal(false)} style={{padding:"8px 12px",borderRadius:8,background:"transparent",border:`1px solid ${C.border}`,color:C.muted,cursor:"pointer",fontSize:12}}>✕</button>
+          </>
+        ):(
+          <button onClick={()=>setEditGoal(true)} style={{background:`${C.gold}18`,border:`1px solid ${C.gold}44`,color:C.gold,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:12,letterSpacing:1}}>
+            ✎ Modifier l'objectif · {cfg.goal}kg
+          </button>
+        )}
+        {toGoal!==null&&<div style={{fontSize:11,color:C.muted,marginLeft:"auto"}}>{toGoal>0?`encore ${toGoal}kg`:"🎯 Objectif atteint !"}</div>}
+      </div>
+
+      {/* Chart */}
+      <div style={{background:`linear-gradient(135deg,${C.card},${C.surface})`,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px",marginBottom:16}} className="fade-up">
+        <div style={{fontSize:10,letterSpacing:2,color:C.muted,marginBottom:12}}>COURBE DE POIDS</div>
+        <WeightChart entries={entries} goal={cfg.goal} color={def.color}/>
+      </div>
+
+      {/* Add entry */}
+      <div style={{background:`linear-gradient(135deg,${C.card},${C.surface})`,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px",marginBottom:16}} className="fade-up">
+        <div style={{fontSize:10,letterSpacing:2,color:C.muted,marginBottom:12}}>AJOUTER UN POIDS</div>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <input type="date" value={newD} onChange={e=>setNewD(e.target.value)}
+            style={{flex:1,background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 10px",color:C.cream,fontSize:13}}/>
+          <input type="number" placeholder="kg" value={newW} onChange={e=>setNewW(e.target.value)}
+            style={{width:80,background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 10px",color:C.cream,fontSize:14,textAlign:"center"}}/>
+          <button onClick={addEntry} style={{padding:"10px 18px",borderRadius:8,background:`linear-gradient(135deg,${def.color},${def.color}CC)`,border:"none",color:"#0E0800",fontFamily:"'Bebas Neue',sans-serif",fontSize:16,letterSpacing:1,cursor:"pointer"}}>+</button>
+        </div>
+      </div>
+
+      {/* History */}
+      {sorted.length>0&&(
+        <div style={{background:`linear-gradient(135deg,${C.card},${C.surface})`,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px"}} className="fade-up">
+          <div style={{fontSize:10,letterSpacing:2,color:C.muted,marginBottom:12}}>HISTORIQUE</div>
+          {sorted.slice(0,10).map((e,i)=>(
+            <div key={e.date} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0",borderBottom:i<sorted.length-1?`1px solid ${C.border}`:"none"}}>
+              <div style={{fontSize:12,color:C.muted}}>{new Date(e.date+"T12:00:00").toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"})}</div>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,color:def.color,letterSpacing:1}}>{e.weight} kg</div>
+              <button onClick={()=>removeEntry(e.date)} style={{background:"transparent",border:"none",color:C.dim,cursor:"pointer",fontSize:16,padding:"0 4px"}}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── WORKOUT SCREEN ──────────────────────────────────────────────────────────
+function Workout({session,level,duration,color,onBack}){
+  const [elapsed,setElapsed]=useState(0);
+  const [running,setRunning]=useState(false);
+  const startRef=useRef(null);   // absolute timestamp of when running started
+  const savedRef=useRef(0);      // elapsed saved at last pause
+  const intervalRef=useRef();
+  const sess=SESSIONS[session];
+
+  const toggleRunning=()=>{
+    setRunning(p=>{
+      const next=!p;
+      if(next){
+        // resuming: anchor start so current savedRef elapsed is preserved
+        startRef.current=Date.now()-savedRef.current*1000;
+      } else {
+        // pausing: save current elapsed
+        savedRef.current=elapsed;
+        clearInterval(intervalRef.current);
+      }
+      return next;
+    });
+  };
+
+  useEffect(()=>{
+    if(!running) return;
+    intervalRef.current=setInterval(()=>{
+      setElapsed(Math.floor((Date.now()-startRef.current)/1000));
+    },500);
+    // Recalculate on screen unlock
+    const onVis=()=>{ if(!document.hidden&&startRef.current) setElapsed(Math.floor((Date.now()-startRef.current)/1000)); };
+    document.addEventListener('visibilitychange',onVis);
+    return()=>{ clearInterval(intervalRef.current); document.removeEventListener('visibilitychange',onVis); };
+  },[running]);
+  const phases=useMemo(()=>buildProgram(session,level,duration),[session,level,duration]);
+  const fmt=s=>`${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+  const lvLabel=LEVELS.find(l=>l.key===level).label;
+  return(
+    <div style={{minHeight:"100vh",background:`radial-gradient(ellipse at top,#3A1800 0%,${C.bg} 50%)`,paddingBottom:100}}>
+      <div style={{position:"sticky",top:0,zIndex:100,background:`#1A0E03F0`,padding:"14px 18px 12px",borderBottom:`1px solid ${C.border}`}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,maxWidth:480,margin:"0 auto"}}>
+          <button onClick={onBack} style={{background:"transparent",border:`1px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:13}}>←</button>
+          <div style={{flex:1}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+              <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:2,color:sess.color}}>{sess.label}</span>
+              <span style={{fontSize:10,padding:"2px 7px",borderRadius:20,background:`${sess.color}22`,color:sess.color}}>{lvLabel.toUpperCase()}</span>
+              <span style={{fontSize:10,padding:"2px 7px",borderRadius:20,background:`${C.amber}22`,color:C.amber}}>{duration}MIN</span>
+            </div>
+            <div style={{fontSize:11,color:C.dim}}>{sess.subtitle}</div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:19,letterSpacing:2,color:running?sess.color:C.dim}}>{fmt(elapsed)}</div>
+            <button onClick={toggleRunning} style={{fontSize:10,padding:"2px 10px",borderRadius:6,border:`1px solid ${running?sess.color+"55":C.border}`,background:running?`${sess.color}18`:"transparent",color:running?sess.color:C.dim,cursor:"pointer"}}>{running?"⏸":"▶ Start"}</button>
+          </div>
+        </div>
+      </div>
+      <div style={{padding:"16px 18px",maxWidth:480,margin:"0 auto"}}>
+        {phases.map((phase,pi)=>(
+          <div key={pi} style={{marginBottom:24,animationDelay:`${pi*0.08}s`}} className="fade-up">
+            <div style={{display:"flex",alignItems:"center",marginBottom:12,gap:10}}>
+              <div style={{width:26,height:26,borderRadius:"50%",background:`${sess.color}33`,border:`1px solid ${sess.color}55`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue',sans-serif",fontSize:12,color:sess.color,flexShrink:0}}>{pi+1}</div>
+              <div style={{flex:1}}>
+                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:14,letterSpacing:2,color:C.cream}}>{phase.name.toUpperCase()}</div>
+                <div style={{fontSize:11,color:C.dim}}>{phase.duration}</div>
+              </div>
+            </div>
+            {phase.exercises.map((ex,ei)=>(<ExerciseCard key={`${pi}-${ei}`} ex={ex} color={sess.color}/>))}
+          </div>
+        ))}
+        <div style={{padding:"14px 16px",background:`linear-gradient(135deg,#2A1A08,#1C1005)`,borderRadius:12,border:`1px solid ${C.border}`,borderLeft:`3px solid ${C.gold}`}}>
+          <div style={{fontSize:10,letterSpacing:2,color:C.amber,marginBottom:6}}>💡 NUTRITION</div>
+          <div style={{fontSize:12,color:C.muted,lineHeight:1.7}}>
+            {level==="debutant"?"Mange 1.6–1.8g de protéines par kg. Progression avant restriction calorique.":level==="intermediaire"?"Vise -350 kcal/jour. 1.8–2g de protéines par kg.":"Recomposition : maintien ±100 kcal + 2–2.2g protéines/kg. Cycle carbs autour des séances."}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── SESSION CONFIG SCREEN ───────────────────────────────────────────────────
+function SessionConfig({profileId,onStart,profileColor}){
+  const cfgKey=`abdfit_profilecfg_${profileId}`;
+  const savedCfg=LS.get(cfgKey,{});
+  const def=PROFILE_DEFS[profileId];
+  const [session,setSession]=useState("push");
+  const [level,setLevel]=useState(savedCfg.level||def.defaultLevel);
+  const [duration,setDuration]=useState(savedCfg.duration||def.defaultDuration);
+  const sess=SESSIONS[session];
+  const savePref=()=>{const c=LS.get(cfgKey,{});LS.set(cfgKey,{...c,level,duration});};
+  return(
+    <div style={{padding:"16px 18px 100px",maxWidth:480,margin:"0 auto"}}>
+      {/* Session */}
+      <div style={{marginBottom:24}} className="fade-up">
+        <div style={{fontSize:10,letterSpacing:3,color:C.muted,marginBottom:10}}>SÉANCE DU JOUR</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {Object.entries(SESSIONS).map(([k,s])=>{
+            const active=session===k;
+            return(<button key={k} onClick={()=>setSession(k)} style={{padding:"14px 10px",borderRadius:14,cursor:"pointer",border:`2px solid ${active?s.color:C.border}`,background:active?`linear-gradient(135deg,${s.color}28,${s.color}10)`:`linear-gradient(135deg,${C.card},${C.surface})`,textAlign:"left",transition:"all 0.25s",transform:active?"scale(1.02)":"scale(1)"}}>
+              <div style={{fontSize:20,marginBottom:6}}>{s.icon}</div>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:19,letterSpacing:2,color:active?s.color:C.cream}}>{s.label}</div>
+              <div style={{fontSize:11,color:C.muted,marginTop:2}}>{s.subtitle}</div>
+            </button>);
+          })}
+        </div>
+      </div>
+      {/* Level */}
+      <div style={{marginBottom:24}} className="fade-up">
+        <div style={{fontSize:10,letterSpacing:3,color:C.muted,marginBottom:10}}>NIVEAU</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {LEVELS.map(lv=>{
+            const active=level===lv.key;
+            return(<button key={lv.key} onClick={()=>setLevel(lv.key)} style={{display:"flex",alignItems:"center",gap:14,padding:"12px 14px",borderRadius:12,cursor:"pointer",border:`2px solid ${active?profileColor:C.border}`,background:active?`${profileColor}18`:`linear-gradient(135deg,${C.card},${C.surface})`,textAlign:"left",transition:"all 0.2s"}}>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:17,color:active?profileColor:C.dim,minWidth:32}}>{lv.badge}</div>
+              <div>
+                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,letterSpacing:1,color:active?C.cream:C.muted}}>{lv.label}</div>
+                <div style={{fontSize:11,color:C.dim}}>{lv.desc}</div>
+              </div>
+              {active&&<div style={{marginLeft:"auto",width:8,height:8,borderRadius:"50%",background:profileColor,boxShadow:`0 0 8px ${profileColor}`}}/>}
+            </button>);
+          })}
+        </div>
+      </div>
+      {/* Duration */}
+      <div style={{marginBottom:28}} className="fade-up">
+        <div style={{fontSize:10,letterSpacing:3,color:C.muted,marginBottom:10}}>DURÉE</div>
+        <div style={{display:"flex",gap:10}}>
+          {DURATIONS.map(d=>{
+            const active=duration===d;
+            return(<button key={d} onClick={()=>setDuration(d)} style={{flex:1,padding:"14px 4px",borderRadius:12,cursor:"pointer",border:`2px solid ${active?C.amber:C.border}`,background:active?`${C.amber}22`:`linear-gradient(135deg,${C.card},${C.surface})`,transition:"all 0.2s",transform:active?"scale(1.04)":"scale(1)"}}>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,color:active?C.amber:C.muted}}>{d}</div>
+              <div style={{fontSize:10,color:active?C.amber:C.dim}}>min</div>
+            </button>);
+          })}
+        </div>
+      </div>
+      {/* CTA */}
+      <button onClick={()=>{savePref();onStart(session,level,duration);}} style={{width:"100%",padding:"18px",borderRadius:16,cursor:"pointer",border:`2px solid ${sess.color}`,background:`linear-gradient(135deg,${sess.color},${sess.color}CC)`,boxShadow:`0 8px 28px ${sess.color}44`,fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:3,color:"#0D0806",transition:"all 0.2s"}}>
+        LANCER {sess.emoji}
+      </button>
+    </div>
+  );
+}
+
+// ─── PROFIL SCREEN ───────────────────────────────────────────────────────────
+function ProfilScreen({activeProfile,onSwitch}){
+  return(
+    <div style={{padding:"16px 18px 100px",maxWidth:480,margin:"0 auto"}}>
+      <div style={{fontSize:10,letterSpacing:3,color:C.muted,marginBottom:14}} className="fade-up">CHOISIR UN PROFIL</div>
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        {Object.values(PROFILE_DEFS).map(p=>{
+          const active=activeProfile===p.id;
+          return(
+            <button key={p.id} onClick={()=>onSwitch(p.id)} style={{display:"flex",alignItems:"center",gap:16,padding:"20px 18px",borderRadius:16,cursor:"pointer",border:`2px solid ${active?p.color:C.border}`,background:active?`linear-gradient(135deg,${p.color}28,${p.color}10)`:`linear-gradient(135deg,${C.card},${C.surface})`,textAlign:"left",transition:"all 0.3s",transform:active?"scale(1.02)":"scale(1)"}} className="pop-in">
+              <div style={{width:54,height:54,borderRadius:"50%",background:`linear-gradient(135deg,${p.color}44,${p.color}22)`,border:`2px solid ${p.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,flexShrink:0}}>{p.emoji}</div>
+              <div style={{flex:1}}>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:active?p.color:C.cream,letterSpacing:1}}>{p.name}</div>
+                <div style={{fontSize:12,color:C.muted,marginTop:3}}>Objectif : {p.defaultGoal}kg · {LEVELS.find(l=>l.key===p.defaultLevel).label}</div>
+              </div>
+              {active&&<div style={{width:12,height:12,borderRadius:"50%",background:p.color,boxShadow:`0 0 12px ${p.color}`,flexShrink:0}}/>}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{marginTop:28,padding:"16px",background:`${C.orange}0C`,border:`1px solid ${C.orange}22`,borderRadius:12}} className="fade-up">
+        <div style={{fontSize:10,letterSpacing:2,color:C.orange,marginBottom:6}}>ℹ️ PROFILS</div>
+        <div style={{fontSize:12,color:C.muted,lineHeight:1.7}}>Chaque profil a son propre historique de poids, ses préférences de niveau et de durée. Les données sont sauvegardées sur cet appareil.</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── BOTTOM NAV ──────────────────────────────────────────────────────────────
+function BottomNav({tab,setTab,profileColor}){
+  const items=[
+    {key:"seance",icon:"🏋",label:"Séance"},
+    {key:"progression",icon:"📈",label:"Progression"},
+    {key:"profil",icon:"👤",label:"Profil"},
+  ];
+  return(
+    <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:200,background:`#120800F8`,borderTop:`1px solid ${C.border}`,display:"flex",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)"}}>
+      {items.map(it=>{
+        const active=tab===it.key;
+        return(
+          <button key={it.key} onClick={()=>setTab(it.key)} style={{flex:1,padding:"10px 4px 14px",background:"transparent",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,transition:"all 0.2s"}}>
+            <span style={{fontSize:20,filter:active?"none":"grayscale(0.6)",opacity:active?1:0.5}}>{it.icon}</span>
+            <span style={{fontSize:10,letterSpacing:1,color:active?profileColor:C.dim,fontFamily:"'DM Sans',sans-serif",fontWeight:active?500:400}}>{it.label.toUpperCase()}</span>
+            {active&&<div style={{width:24,height:2,borderRadius:2,background:profileColor,marginTop:1}}/>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── SECRET BG PANEL ─────────────────────────────────────────────────────────
+const BG_PRESETS = [
+  {label:"Nuit",    bg:"#0E0800", top:"#3A1800"},
+  {label:"Charbon", bg:"#111111", top:"#2A2A2A"},
+  {label:"Café",    bg:"#1A1005", top:"#4A2800"},
+  {label:"Forêt",   bg:"#071410", top:"#0D3020"},
+  {label:"Marine",  bg:"#070B14", top:"#0D1E3A"},
+  {label:"Aubergine",bg:"#0E0812",top:"#2A1040"},
+  {label:"Cacao",   bg:"#140A08", top:"#3A1C14"},
+  {label:"Ivoire",  bg:"#F5EDD8", top:"#E8C880"},
+];
+
+function SecretPanel({onClose, bgConfig, setBgConfig}){
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:999,display:"flex",alignItems:"flex-end",background:"#00000088"}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{width:"100%",background:`linear-gradient(180deg,#2A1400,#1A0C00)`,border:`1px solid ${C.borderHi}`,borderRadius:"20px 20px 0 0",padding:"24px 20px 40px",animation:"fadeUp 0.3s ease"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+          <div>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:3,color:C.orange}}>🎨 APPARENCE</div>
+            <div style={{fontSize:11,color:C.dim,marginTop:2}}>Paramètre secret · 5 taps sur le logo</div>
+          </div>
+          <button onClick={onClose} style={{background:"transparent",border:`1px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:13}}>✕</button>
+        </div>
+        <div style={{fontSize:10,letterSpacing:2,color:C.muted,marginBottom:12}}>COULEUR DE FOND</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+          {BG_PRESETS.map(p=>{
+            const active=bgConfig.bg===p.bg;
+            return(
+              <button key={p.label} onClick={()=>{setBgConfig(p);LS.set("abdfit_bgconfig",p);}} style={{padding:"10px 4px",borderRadius:10,cursor:"pointer",border:`2px solid ${active?C.orange:C.border}`,background:"transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:6,transition:"all 0.2s"}}>
+                <div style={{width:36,height:36,borderRadius:8,background:`radial-gradient(ellipse at top,${p.top},${p.bg})`,border:`1px solid #ffffff18`,boxShadow:active?`0 0 10px ${C.orange}88`:"none"}}/>
+                <span style={{fontSize:10,color:active?C.orange:C.dim,letterSpacing:0.5}}>{p.label}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div style={{marginTop:20}}>
+          <div style={{fontSize:10,letterSpacing:2,color:C.muted,marginBottom:10}}>PERSONNALISÉ</div>
+          <div style={{display:"flex",gap:10,alignItems:"center"}}>
+            <input type="color" value={bgConfig.bg} onChange={e=>{const nc={...bgConfig,bg:e.target.value};setBgConfig(nc);LS.set("abdfit_bgconfig",nc);}}
+              style={{width:48,height:48,borderRadius:10,border:`1px solid ${C.border}`,background:"transparent",cursor:"pointer",padding:2}}/>
+            <div style={{flex:1}}>
+              <div style={{fontSize:12,color:C.muted}}>Fond : <span style={{color:C.cream,fontFamily:"monospace"}}>{bgConfig.bg}</span></div>
+              <div style={{fontSize:11,color:C.dim,marginTop:2}}>Cliquer sur le carré pour choisir librement</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── APP ROOT ─────────────────────────────────────────────────────────────────
+function App(){
+  const [activeProfile,setActiveProfile]=useState(()=>LS.get("abdfit_activeProfile","miovida"));
+  const [tab,setTab]=useState("seance");
+  const [workout,setWorkout]=useState(null);
+  const [logoTaps,setLogoTaps]=useState(0);
+  const [showSecret,setShowSecret]=useState(false);
+  const [bgConfig,setBgConfig]=useState(()=>LS.get("abdfit_bgconfig",BG_PRESETS[0]));
+  const [showInstallBanner,setShowInstallBanner]=useState(false);
+  const [notifStatus,setNotifStatus]=useState(()=>'Notification' in window ? Notification.permission : 'unsupported');
+  const tapTimer=useRef();
+
+  const profile=PROFILE_DEFS[activeProfile];
+
+  // Register service worker + request notifications on load
+  useEffect(()=>{
+    // Register SW
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('/sw.js').catch(()=>{});
+    }
+    // Show iOS install banner if not already standalone
+    const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isStandalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+    if(isIOS && !isStandalone && !LS.get('abdfit_installDismissed',false)){
+      setTimeout(()=>setShowInstallBanner(true), 2000);
+    }
+  },[]);
+
+  const requestNotifications=async()=>{
+    if(!('Notification' in window)) return;
+    const result=await Notification.requestPermission();
+    setNotifStatus(result);
+  };
+
+  const handleLogoTap=()=>{
+    const next=logoTaps+1;
+    setLogoTaps(next);
+    clearTimeout(tapTimer.current);
+    if(next>=5){setShowSecret(true);setLogoTaps(0);}
+    else{tapTimer.current=setTimeout(()=>setLogoTaps(0),1500);}
+  };
+
+  const switchProfile=id=>{
+    setActiveProfile(id);LS.set("abdfit_activeProfile",id);
+    setTab("seance");setWorkout(null);
+  };
+
+  const topColor=bgConfig.top||"#3A1800";
+
+  if(workout){
+    return <Workout {...workout} color={profile.color} onBack={()=>setWorkout(null)}/>;
+  }
+
+  return(
+    <div style={{minHeight:"100vh",background:`radial-gradient(ellipse at top,${topColor} 0%,${bgConfig.bg} 55%)`}}>
+      {/* Header */}
+      <div style={{padding:"20px 18px 14px",borderBottom:`1px solid ${C.border}`,background:`${bgConfig.bg}CC`,position:"sticky",top:0,zIndex:100,backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",maxWidth:480,margin:"0 auto"}}>
+          <div onClick={handleLogoTap} style={{fontFamily:"'Playfair Display',serif",fontSize:28,fontWeight:900,lineHeight:1,cursor:"default",userSelect:"none",position:"relative"}}>
+            <span style={{color:C.cream}}>Abdella</span><span style={{color:C.orange}}>Fit</span>
+            {logoTaps>0&&logoTaps<5&&(
+              <div style={{position:"absolute",top:-6,right:-10,width:16,height:16,borderRadius:"50%",background:C.orange,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#0E0800",fontWeight:700,fontFamily:"'DM Sans',sans-serif"}}>{5-logoTaps}</div>
+            )}
+          </div>
+          <button onClick={()=>setTab("profil")} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 12px",borderRadius:20,background:`${profile.color}20`,border:`1px solid ${profile.color}55`,cursor:"pointer"}}>
+            <span style={{fontSize:16}}>{profile.emoji}</span>
+            <span style={{fontFamily:"'Playfair Display',serif",fontSize:14,fontWeight:700,color:profile.color}}>{profile.name}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Notification permission banner */}
+      {notifStatus==='default'&&(
+        <div style={{background:`${C.orange}18`,borderBottom:`1px solid ${C.orange}33`,padding:"10px 18px",display:"flex",alignItems:"center",gap:10,maxWidth:480,margin:"0 auto"}}>
+          <span style={{fontSize:16}}>🔔</span>
+          <div style={{flex:1,fontSize:12,color:C.muted}}>Active les notifications pour être alerté quand le repos est terminé</div>
+          <button onClick={requestNotifications} style={{background:C.orange,border:"none",color:"#0E0800",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontFamily:"'Bebas Neue',sans-serif",fontSize:13,letterSpacing:1,flexShrink:0}}>ACTIVER</button>
+        </div>
+      )}
+
+      {/* Content */}
+      <div style={{paddingTop:8}}>
+        {tab==="seance"&&(<SessionConfig profileId={activeProfile} profileColor={profile.color} onStart={(s,l,d)=>setWorkout({session:s,level:l,duration:d})}/>)}
+        {tab==="progression"&&(
+          <div style={{padding:"16px 0 0"}}>
+            <div style={{padding:"0 18px 14px",display:"flex",alignItems:"center",gap:10,maxWidth:480,margin:"0 auto"}}>
+              <span style={{fontSize:22}}>{profile.emoji}</span>
+              <div>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,color:profile.color}}>{profile.name}</div>
+                <div style={{fontSize:11,color:C.dim}}>Suivi du poids</div>
+              </div>
+            </div>
+            <Progression profileId={activeProfile}/>
+          </div>
+        )}
+        {tab==="profil"&&(<ProfilScreen activeProfile={activeProfile} onSwitch={switchProfile}/>)}
+      </div>
+
+      <BottomNav tab={tab} setTab={setTab} profileColor={profile.color}/>
+
+      {/* iOS install banner */}
+      {showInstallBanner&&(
+        <div style={{position:"fixed",bottom:72,left:16,right:16,zIndex:300,background:`linear-gradient(135deg,#2A1400,#1A0C00)`,border:`1px solid ${C.orange}55`,borderRadius:16,padding:"16px",boxShadow:"0 8px 32px #00000088"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,letterSpacing:2,color:C.orange}}>📲 INSTALLER L'APP</div>
+            <button onClick={()=>{setShowInstallBanner(false);LS.set('abdfit_installDismissed',true);}} style={{background:"transparent",border:"none",color:C.dim,cursor:"pointer",fontSize:18,lineHeight:1}}>×</button>
+          </div>
+          <div style={{fontSize:12,color:C.muted,lineHeight:1.7}}>
+            Pour les notifications et le chrono en fond d'écran :<br/>
+            Tape <strong style={{color:C.cream}}>Partager</strong> → <strong style={{color:C.cream}}>"Sur l'écran d'accueil"</strong>
+          </div>
+          <div style={{fontSize:18,marginTop:10,textAlign:"center"}}>⬆️ 📱</div>
+        </div>
+      )}
+
+      {showSecret&&<SecretPanel onClose={()=>setShowSecret(false)} bgConfig={bgConfig} setBgConfig={setBgConfig}/>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
