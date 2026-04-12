@@ -8,9 +8,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="AbdellaFit"/>
-<meta name="theme-color" content="#FF6B1A"/>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<meta name="theme-color" content="#FF6B00"/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
@@ -18,13 +17,12 @@
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
   html,body{height:100%;}
   body{background:#0A0A0A;color:#FFFFFF;font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;}
-  ::-webkit-scrollbar{width:4px;}
-  ::-webkit-scrollbar-track{background:#141414;}
-  ::-webkit-scrollbar-thumb{background:#2A2A2A;border-radius:4px;}
-  @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes popIn{from{opacity:0;transform:scale(0.92)}to{opacity:1;transform:scale(1)}}
-  .fade-up{animation:fadeUp 0.35s ease both;}
-  .pop-in{animation:popIn 0.3s ease both;}
+  ::-webkit-scrollbar{width:3px;}
+  ::-webkit-scrollbar-track{background:#111;}
+  ::-webkit-scrollbar-thumb{background:#333;border-radius:2px;}
+  @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  .su{animation:slideUp 0.3s ease both;}
   input[type=number]{-moz-appearance:textfield;}
   input[type=number]::-webkit-outer-spin-button,
   input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
@@ -35,80 +33,79 @@
 <script type="text/babel">
 const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
-// ─── LOCALSTORAGE ────────────────────────────────────────────────────────────
 const LS = {
-  get:(k,fb)=>{ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):fb; }catch{ return fb; } },
-  set:(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch{} },
+  get:(k,fb)=>{ try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;} },
+  set:(k,v)=>{ try{localStorage.setItem(k,JSON.stringify(v));}catch{} },
 };
 
 // ─── 36 PALETTES ─────────────────────────────────────────────────────────────
-const BG_PRESETS = [
-  {family:"🔥 Feu",      label:"Braise",     bg:"#0A0A0A",surface:"#141414",border:"#2A2A2A",accent:"#FF5500",text:"#FFFFFF",  muted:"#555555",top:"#2A1400"},
-  {family:"🔥 Feu",      label:"Forge",      bg:"#0A0A0A",surface:"#141414",border:"#2A2A2A",accent:"#FF7A00",text:"#FFFFFF",  muted:"#555555",top:"#2A1A00"},
-  {family:"🔥 Feu",      label:"Soleil",     bg:"#0A0A0A",surface:"#141414",border:"#2A2A2A",accent:"#FF9900",text:"#FFFFFF",  muted:"#555555",top:"#2A2000"},
-  {family:"🔥 Feu",      label:"Mandarine",  bg:"#0A0A0A",surface:"#141414",border:"#2A2A2A",accent:"#FF6020",text:"#FFFFFF",  muted:"#555555",top:"#2A1800"},
-  {family:"🌋 Volcan",   label:"Lave",       bg:"#0D0808",surface:"#181010",border:"#301818",accent:"#E03000",text:"#FFEEEE",  muted:"#804040",top:"#3A1010"},
-  {family:"🌋 Volcan",   label:"Brûlure",    bg:"#0D0808",surface:"#181010",border:"#301818",accent:"#CC2020",text:"#FFEEEE",  muted:"#804040",top:"#380C0C"},
-  {family:"🌋 Volcan",   label:"Rubis",      bg:"#0D0808",surface:"#181010",border:"#301818",accent:"#E0204A",text:"#FFEEEE",  muted:"#804040",top:"#380C18"},
-  {family:"🌋 Volcan",   label:"Grenat",     bg:"#0D0808",surface:"#181010",border:"#301818",accent:"#C0184A",text:"#FFEEEE",  muted:"#804040",top:"#340C18"},
-  {family:"🌕 Ambre",    label:"Or",         bg:"#080600",surface:"#141000",border:"#2A2000",accent:"#E8A000",text:"#FFF8E0",  muted:"#806020",top:"#2A1E00"},
-  {family:"🌕 Ambre",    label:"Miel",       bg:"#080600",surface:"#141000",border:"#2A2000",accent:"#D48020",text:"#FFF8E0",  muted:"#806020",top:"#281A00"},
-  {family:"🌕 Ambre",    label:"Bronze",     bg:"#080600",surface:"#141000",border:"#2A2000",accent:"#C07030",text:"#FFF8E0",  muted:"#806020",top:"#241600"},
-  {family:"🌕 Ambre",    label:"Cuivre",     bg:"#080600",surface:"#141000",border:"#2A2000",accent:"#E87030",text:"#FFF8E0",  muted:"#806020",top:"#2A1800"},
-  {family:"🟤 Terre",    label:"Terracotta", bg:"#0C0704",surface:"#1A1008",border:"#3A2010",accent:"#D46040",text:"#FFF0DC",  muted:"#8A5A30",top:"#3A1A08"},
-  {family:"🟤 Terre",    label:"Argile",     bg:"#0C0704",surface:"#1A1008",border:"#3A2010",accent:"#C05030",text:"#FFF0DC",  muted:"#8A5A30",top:"#341608"},
-  {family:"🟤 Terre",    label:"Sienne",     bg:"#0C0704",surface:"#1A1008",border:"#3A2010",accent:"#A04020",text:"#FFF0DC",  muted:"#8A5A30",top:"#2C1006"},
-  {family:"🟤 Terre",    label:"Ocre",       bg:"#0C0704",surface:"#1A1008",border:"#3A2010",accent:"#C88030",text:"#FFF0DC",  muted:"#8A5A30",top:"#381C08"},
-  {family:"🌅 Coucher",  label:"Dusk",       bg:"#08060E",surface:"#12101C",border:"#28204A",accent:"#FF6040",text:"#FFF0F8",  muted:"#7A4060",top:"#281030"},
-  {family:"🌅 Coucher",  label:"Crépuscule", bg:"#08060E",surface:"#12101C",border:"#28204A",accent:"#FF4080",text:"#FFF0F8",  muted:"#7A4060",top:"#280C28"},
-  {family:"🌅 Coucher",  label:"Aurore",     bg:"#08060E",surface:"#12101C",border:"#28204A",accent:"#FF8040",text:"#FFF0F8",  muted:"#7A4060",top:"#2A1020"},
-  {family:"🌅 Coucher",  label:"Solstice",   bg:"#08060E",surface:"#12101C",border:"#28204A",accent:"#E06060",text:"#FFF0F8",  muted:"#7A4060",top:"#281018"},
-  {family:"🪖 Militaire",label:"Kaki",       bg:"#060A06",surface:"#101810",border:"#203020",accent:"#80C040",text:"#F0FFE0",  muted:"#507030",top:"#102010"},
-  {family:"🪖 Militaire",label:"Jungle",     bg:"#060A06",surface:"#101810",border:"#203020",accent:"#40A060",text:"#F0FFE0",  muted:"#507030",top:"#0C1C10"},
-  {family:"🪖 Militaire",label:"Olive",      bg:"#060A06",surface:"#101810",border:"#203020",accent:"#A0A020",text:"#F0FFE0",  muted:"#607030",top:"#141A08"},
-  {family:"🪖 Militaire",label:"Camo",       bg:"#060A06",surface:"#101810",border:"#203020",accent:"#60C080",text:"#F0FFE0",  muted:"#507030",top:"#0C1E14"},
-  {family:"🔵 Acier",    label:"Cobalt",     bg:"#060810",surface:"#10141E",border:"#20304A",accent:"#4080FF",text:"#E8F0FF",  muted:"#406090",top:"#0C1430"},
-  {family:"🔵 Acier",    label:"Acier",      bg:"#060810",surface:"#10141E",border:"#20304A",accent:"#60A0E0",text:"#E8F0FF",  muted:"#406090",top:"#0C1A34"},
-  {family:"🔵 Acier",    label:"Glace",      bg:"#060810",surface:"#10141E",border:"#20304A",accent:"#40C0E0",text:"#E8F0FF",  muted:"#406090",top:"#0A1C38"},
-  {family:"🔵 Acier",    label:"Minuit",     bg:"#060810",surface:"#10141E",border:"#20304A",accent:"#8080FF",text:"#E8F0FF",  muted:"#406090",top:"#0C1030"},
-  {family:"💜 Nuit",     label:"Améthyste",  bg:"#08060E",surface:"#12101C",border:"#28204A",accent:"#A060FF",text:"#F0E8FF",  muted:"#605090",top:"#180C30"},
-  {family:"💜 Nuit",     label:"Mauve",      bg:"#08060E",surface:"#12101C",border:"#28204A",accent:"#C060C0",text:"#F0E8FF",  muted:"#705070",top:"#1C0C28"},
-  {family:"💜 Nuit",     label:"Nuit",       bg:"#08060E",surface:"#12101C",border:"#28204A",accent:"#6040C0",text:"#F0E8FF",  muted:"#504080",top:"#120A28"},
-  {family:"💜 Nuit",     label:"Nebula",     bg:"#08060E",surface:"#12101C",border:"#28204A",accent:"#E040A0",text:"#F0E8FF",  muted:"#705070",top:"#1C0820"},
-  {family:"⚙️ Titane",  label:"Titane",     bg:"#0E0E0E",surface:"#1A1A1A",border:"#303030",accent:"#FF7A00",text:"#F0F0F0",  muted:"#606060",top:"#282008"},
-  {family:"⚙️ Titane",  label:"Argent",     bg:"#0E0E0E",surface:"#1A1A1A",border:"#303030",accent:"#C0C0C0",text:"#F0F0F0",  muted:"#606060",top:"#202020"},
-  {family:"⚙️ Titane",  label:"Chrome",     bg:"#0E0E0E",surface:"#1A1A1A",border:"#303030",accent:"#80D0E0",text:"#F0F0F0",  muted:"#606060",top:"#101C20"},
-  {family:"⚙️ Titane",  label:"Tungsten",   bg:"#0E0E0E",surface:"#1A1A1A",border:"#303030",accent:"#E0A020",text:"#F0F0F0",  muted:"#606060",top:"#201A00"},
+const PALETTES = [
+  {family:"🔥 Feu",      label:"Braise",     bg:"#0A0A0A",s:"#141414",b:"#222",a:"#FF5500",t:"#FFF"},
+  {family:"🔥 Feu",      label:"Forge",      bg:"#0A0A0A",s:"#141414",b:"#222",a:"#FF7A00",t:"#FFF"},
+  {family:"🔥 Feu",      label:"Soleil",     bg:"#0A0A0A",s:"#141414",b:"#222",a:"#FF9900",t:"#FFF"},
+  {family:"🔥 Feu",      label:"Mandarine",  bg:"#0A0A0A",s:"#141414",b:"#222",a:"#FF6020",t:"#FFF"},
+  {family:"🌋 Volcan",   label:"Lave",       bg:"#0D0808",s:"#181010",b:"#2A1414",a:"#E03000",t:"#FFE8E8"},
+  {family:"🌋 Volcan",   label:"Brûlure",    bg:"#0D0808",s:"#181010",b:"#2A1414",a:"#CC2020",t:"#FFE8E8"},
+  {family:"🌋 Volcan",   label:"Rubis",      bg:"#0D0808",s:"#181010",b:"#2A1414",a:"#E0204A",t:"#FFE8E8"},
+  {family:"🌋 Volcan",   label:"Grenat",     bg:"#0D0808",s:"#181010",b:"#2A1414",a:"#C0184A",t:"#FFE8E8"},
+  {family:"🌕 Ambre",    label:"Or",         bg:"#080600",s:"#141000",b:"#282000",a:"#E8A000",t:"#FFF8E0"},
+  {family:"🌕 Ambre",    label:"Miel",       bg:"#080600",s:"#141000",b:"#282000",a:"#D48020",t:"#FFF8E0"},
+  {family:"🌕 Ambre",    label:"Bronze",     bg:"#080600",s:"#141000",b:"#282000",a:"#C07030",t:"#FFF8E0"},
+  {family:"🌕 Ambre",    label:"Cuivre",     bg:"#080600",s:"#141000",b:"#282000",a:"#E87030",t:"#FFF8E0"},
+  {family:"🟤 Terre",    label:"Terracotta", bg:"#0C0704",s:"#1A1008",b:"#301808",a:"#D46040",t:"#FFF0DC"},
+  {family:"🟤 Terre",    label:"Argile",     bg:"#0C0704",s:"#1A1008",b:"#301808",a:"#C05030",t:"#FFF0DC"},
+  {family:"🟤 Terre",    label:"Sienne",     bg:"#0C0704",s:"#1A1008",b:"#301808",a:"#A04020",t:"#FFF0DC"},
+  {family:"🟤 Terre",    label:"Ocre",       bg:"#0C0704",s:"#1A1008",b:"#301808",a:"#C88030",t:"#FFF0DC"},
+  {family:"🌅 Coucher",  label:"Dusk",       bg:"#08060E",s:"#12101C",b:"#241840",a:"#FF6040",t:"#FFF0F8"},
+  {family:"🌅 Coucher",  label:"Crépuscule", bg:"#08060E",s:"#12101C",b:"#241840",a:"#FF4080",t:"#FFF0F8"},
+  {family:"🌅 Coucher",  label:"Aurore",     bg:"#08060E",s:"#12101C",b:"#241840",a:"#FF8040",t:"#FFF0F8"},
+  {family:"🌅 Coucher",  label:"Solstice",   bg:"#08060E",s:"#12101C",b:"#241840",a:"#E06060",t:"#FFF0F8"},
+  {family:"🪖 Militaire",label:"Kaki",       bg:"#060A06",s:"#101810",b:"#1C2E1C",a:"#80C040",t:"#F0FFE0"},
+  {family:"🪖 Militaire",label:"Jungle",     bg:"#060A06",s:"#101810",b:"#1C2E1C",a:"#40A060",t:"#F0FFE0"},
+  {family:"🪖 Militaire",label:"Olive",      bg:"#060A06",s:"#101810",b:"#1C2E1C",a:"#A0A020",t:"#F0FFE0"},
+  {family:"🪖 Militaire",label:"Camo",       bg:"#060A06",s:"#101810",b:"#1C2E1C",a:"#60C080",t:"#F0FFE0"},
+  {family:"🔵 Acier",    label:"Cobalt",     bg:"#060810",s:"#10141E",b:"#1C2A40",a:"#4080FF",t:"#E8F0FF"},
+  {family:"🔵 Acier",    label:"Acier",      bg:"#060810",s:"#10141E",b:"#1C2A40",a:"#60A0E0",t:"#E8F0FF"},
+  {family:"🔵 Acier",    label:"Glace",      bg:"#060810",s:"#10141E",b:"#1C2A40",a:"#40C0E0",t:"#E8F0FF"},
+  {family:"🔵 Acier",    label:"Minuit",     bg:"#060810",s:"#10141E",b:"#1C2A40",a:"#8080FF",t:"#E8F0FF"},
+  {family:"💜 Nuit",     label:"Améthyste",  bg:"#08060E",s:"#12101C",b:"#241840",a:"#A060FF",t:"#F0E8FF"},
+  {family:"💜 Nuit",     label:"Mauve",      bg:"#08060E",s:"#12101C",b:"#241840",a:"#C060C0",t:"#F0E8FF"},
+  {family:"💜 Nuit",     label:"Nuit",       bg:"#08060E",s:"#12101C",b:"#241840",a:"#6040C0",t:"#F0E8FF"},
+  {family:"💜 Nuit",     label:"Nebula",     bg:"#08060E",s:"#12101C",b:"#241840",a:"#E040A0",t:"#F0E8FF"},
+  {family:"⚙️ Titane",  label:"Titane",     bg:"#0E0E0E",s:"#1A1A1A",b:"#2C2C2C",a:"#FF7A00",t:"#F0F0F0"},
+  {family:"⚙️ Titane",  label:"Argent",     bg:"#0E0E0E",s:"#1A1A1A",b:"#2C2C2C",a:"#C0C0C0",t:"#F0F0F0"},
+  {family:"⚙️ Titane",  label:"Chrome",     bg:"#0E0E0E",s:"#1A1A1A",b:"#2C2C2C",a:"#80D0E0",t:"#F0F0F0"},
+  {family:"⚙️ Titane",  label:"Tungsten",   bg:"#0E0E0E",s:"#1A1A1A",b:"#2C2C2C",a:"#E0A020",t:"#F0F0F0"},
 ];
-const BG_FAMILIES = [...new Set(BG_PRESETS.map(p=>p.family))];
+const FAM = [...new Set(PALETTES.map(p=>p.family))];
 
 // ─── PROFILES ────────────────────────────────────────────────────────────────
-const PROFILE_DEFS = {
-  miovida:{ id:"miovida", name:"Miovida", emoji:"🔥", color:"#FF6B1A", defaultGoal:85, defaultStart:100, defaultLevel:"intermediaire", defaultDuration:60 },
+const PROFILES = {
+  miovida:{ id:"miovida", name:"Miovida", emoji:"🔥", color:"#FF6B00", defaultGoal:85, defaultStart:100, defaultLevel:"intermediaire", defaultDuration:60 },
   miamore:{ id:"miamore", name:"Miamore", emoji:"🌸", color:"#FF7A6B", defaultGoal:60, defaultStart:70,  defaultLevel:"debutant",      defaultDuration:45 },
 };
 
-// ─── EXERCISE BANK ───────────────────────────────────────────────────────────
-const YT = n => `https://www.youtube.com/results?search_query=${encodeURIComponent(n+' technique musculation')}`;
+// ─── DATA ────────────────────────────────────────────────────────────────────
+const YT = n=>`https://www.youtube.com/results?search_query=${encodeURIComponent(n+' technique')}`;
 
 const BANK = {
   push:{
     compound:{
       debutant:[
-        {name:"Développé machine pectoraux",tip:"Dos plaqué contre le dossier, poussée régulière"},
-        {name:"Pompes (genoux si besoin)",tip:"Corps gainé, descente contrôlée en 2s"},
-        {name:"Presse épaules machine",tip:"Régler le siège, poignées à hauteur d'épaules"},
-        {name:"Développé haltères légers à plat",tip:"Coudes à 45°, pas d'hyperextension"},
+        {name:"Développé machine pectoraux",tip:"Dos plaqué, poussée régulière"},
+        {name:"Pompes (genoux si besoin)",tip:"Corps gainé, descente 2s"},
+        {name:"Presse épaules machine",tip:"Poignées à hauteur d'épaules"},
+        {name:"Développé haltères légers",tip:"Coudes à 45°, pas d'hyperextension"},
       ],
       intermediaire:[
         {name:"Développé couché barre",tip:"Prise légèrement plus large que les épaules"},
-        {name:"Développé incliné haltères",tip:"Angle 30–45°, étirement complet en bas"},
+        {name:"Développé incliné haltères",tip:"Angle 30–45°, étirement complet"},
         {name:"Développé militaire haltères",tip:"Core gainé, ne pas cambrer"},
-        {name:"Dips barres parallèles",tip:"Légèrement penché avant pour plus de pec"},
+        {name:"Dips barres parallèles",tip:"Légèrement penché avant pour les pecs"},
       ],
       expert:[
-        {name:"Développé couché barre (pause 1s)",tip:"Pause sur poitrine, drive explosif"},
-        {name:"Développé incliné barre",tip:"Contrôle total, tempo 4–1–1"},
+        {name:"Développé couché barre (pause 1s)",tip:"Pause poitrine, drive explosif"},
+        {name:"Développé incliné barre",tip:"Tempo 4–1–1, contrôle total"},
         {name:"Développé militaire barre debout",tip:"Pas d'élan des jambes"},
         {name:"Dips lestés",tip:"Amplitude complète, descente 3s"},
       ]
@@ -128,42 +125,42 @@ const BANK = {
       expert:[
         {name:"Écarté incliné haltères",tip:"Descente profonde, supination légère"},
         {name:"Skullcrusher barre EZ",tip:"Coudes fixes, barre vers le front"},
-        {name:"Élévations latérales câble 1 bras",tip:"Contraction isométrique 1s en haut"},
+        {name:"Élévations latérales câble 1 bras",tip:"Contraction isométrique 1s"},
         {name:"Overhead tricep câble (corde)",tip:"Full stretch, contraction max"},
       ]
     },
     finisher:{
-      debutant:  {name:"Circuit Pompes",   tip:"Pendant 10 min : pompes jusqu'à l'échec, repos 60s, recommence. Compte tes séries."},
-      intermediaire:{name:"HIIT Circuit",  tip:"4 rounds : 30s Push-ups → 30s Mountain climbers → 30s Repos. Intensité max."},
-      expert:    {name:"Tabata Burpees",   tip:"8 rounds : 20s Burpees effort max → 10s Repos. Puis 6 min cardio léger."},
+      debutant:{name:"Circuit Pompes",tip:"10 min · Pompes max → repos 60s → recommence"},
+      intermediaire:{name:"HIIT Circuit",tip:"4 rounds · 30s Push-ups → 30s Mountain climbers → 30s Repos"},
+      expert:{name:"Tabata Burpees",tip:"8 rounds · 20s Burpees max → 10s Repos"},
     }
   },
   pull:{
     compound:{
       debutant:[
-        {name:"Tirage vertical machine (large)",tip:"Descendre jusqu'au menton, contrôle total"},
+        {name:"Tirage vertical machine",tip:"Descendre jusqu'au menton"},
         {name:"Rowing machine assis",tip:"Dos droit, tirer les coudes en arrière"},
-        {name:"Tirage horizontal poulie basse",tip:"Étirement complet vers l'avant"},
+        {name:"Tirage horizontal poulie",tip:"Étirement complet vers l'avant"},
         {name:"Shrug machine",tip:"1s de pause en haut"},
       ],
       intermediaire:[
-        {name:"Tractions assistées / Tirage poulie",tip:"Grip large, omoplate rétractée"},
+        {name:"Tractions assistées / Poulie lats",tip:"Grip large, omoplate rétractée"},
         {name:"Rowing assis câble",tip:"Coudes collés, tirer vers le nombril"},
-        {name:"Tirage poitrine poulie (grip neutre)",tip:"Tirer vers le sternum"},
+        {name:"Tirage poitrine grip neutre",tip:"Tirer vers le sternum"},
         {name:"Rowing 1 bras haltère",tip:"Dos parallèle, pleine amplitude"},
       ],
       expert:[
-        {name:"Tractions pronation lestées",tip:"Dead hang, tirer jusqu'au menton"},
+        {name:"Tractions pronation lestées",tip:"Dead hang complet, tirer au menton"},
         {name:"Soulevé de terre conventionnel",tip:"Barre sur tibias, dos plat"},
         {name:"Rowing barre penché (Yates)",tip:"Dos à 70°, charge lourde"},
-        {name:"Tirage nuque poulie large",tip:"Contrôle strict, ne pas balancer"},
+        {name:"Tirage nuque poulie large",tip:"Contrôle strict"},
       ]
     },
     isolation:{
       debutant:[
         {name:"Face pull élastique / câble",tip:"Corde vers le visage, coudes hauts"},
-        {name:"Curl haltères assis (alterné)",tip:"Supination complète en montant"},
-        {name:"Curl pupitre machine",tip:"Amplitude complète, pause en bas"},
+        {name:"Curl haltères assis alterné",tip:"Supination complète en montant"},
+        {name:"Curl pupitre machine",tip:"Amplitude complète"},
       ],
       intermediaire:[
         {name:"Face pull corde haute poulie",tip:"Coudes à hauteur des épaules"},
@@ -172,16 +169,16 @@ const BANK = {
         {name:"Tirage droit haltère",tip:"Coudes montant au-dessus des épaules"},
       ],
       expert:[
-        {name:"Face pull + rotation externe",tip:"Finir avec les poings vers l'extérieur"},
+        {name:"Face pull + rotation externe",tip:"Finir poings vers l'extérieur"},
         {name:"Curl araignée barre EZ",tip:"Poitrine contre l'inclinaison"},
-        {name:"Curl câble 1 bras (concentration)",tip:"Contraction isométrique 1s"},
+        {name:"Curl câble 1 bras",tip:"Contraction isométrique 1s"},
         {name:"Shrug barre lourd",tip:"3s de contraction en haut"},
       ]
     },
     finisher:{
-      debutant:  {name:"Circuit Tirage",   tip:"Pendant 10 min : tirage élastique max, repos 60s, recommence."},
-      intermediaire:{name:"HIIT Circuit",  tip:"4 rounds : 30s Renegade rows → 30s Corde à sauter → 30s Repos."},
-      expert:    {name:"Tractions max",    tip:"Pendant 10 min : tractions jusqu'à l'échec, repos 90s, recommence."},
+      debutant:{name:"Circuit Tirage",tip:"10 min · Tirage élastique max → repos 60s → recommence"},
+      intermediaire:{name:"HIIT Circuit",tip:"4 rounds · 30s Renegade rows → 30s Corde à sauter → 30s Repos"},
+      expert:{name:"Tractions max",tip:"10 min · Tractions jusqu'à l'échec → repos 90s → recommence"},
     }
   },
   legs:{
@@ -189,7 +186,7 @@ const BANK = {
       debutant:[
         {name:"Leg Press 45°",tip:"Pieds à largeur d'épaules"},
         {name:"Hack squat machine",tip:"Dos plaqué, descente lente"},
-        {name:"Squat gobelet haltère léger",tip:"Haltère contre la poitrine"},
+        {name:"Squat gobelet léger",tip:"Haltère contre la poitrine"},
         {name:"Step-ups haltères légers",tip:"Pied entier sur le banc"},
       ],
       intermediaire:[
@@ -199,7 +196,7 @@ const BANK = {
         {name:"Fentes marchées haltères",tip:"Grand pas, genou arrière proche du sol"},
       ],
       expert:[
-        {name:"Back squat barre (paused)",tip:"2s de pause en bas, drive explosif"},
+        {name:"Back squat barre paused",tip:"2s de pause en bas, drive explosif"},
         {name:"Deadlift roumain barre",tip:"Amplitude maximale"},
         {name:"Front squat barre",tip:"Coudes hauts, core sous pression"},
         {name:"Fentes bulgares barre",tip:"Pied arrière surélevé, profondeur max"},
@@ -207,363 +204,337 @@ const BANK = {
     },
     isolation:{
       debutant:[
-        {name:"Leg Extension machine",tip:"Pause 1s en haut, descente contrôlée"},
+        {name:"Leg Extension machine",tip:"Pause 1s en haut"},
         {name:"Leg Curl couché machine",tip:"Hanches plaquées, amplitude complète"},
-        {name:"Mollets machine assis",tip:"Amplitude maximale, 2s de pause en bas"},
+        {name:"Mollets machine assis",tip:"Amplitude maximale, 2s de pause"},
       ],
       intermediaire:[
         {name:"Leg Extension machine",tip:"Tempo 2–1–2, brûlure en fin de série"},
-        {name:"Leg Curl couché machine",tip:"Contraction max, ne pas laisser tomber"},
-        {name:"Fentes bulgares haltères",tip:"4–6 reps / jambe, charge progressive"},
+        {name:"Leg Curl couché machine",tip:"Contraction max"},
+        {name:"Fentes bulgares haltères",tip:"4–6 reps / jambe"},
         {name:"Mollets debout",tip:"Full ROM, pause 2s en bas"},
       ],
       expert:[
-        {name:"Leg Extension (drop set)",tip:"Drop 20% à chaque série"},
-        {name:"Leg Curl debout (1 jambe)",tip:"Isolation totale, étirement complet"},
+        {name:"Leg Extension drop set",tip:"Drop 20% à chaque série"},
+        {name:"Leg Curl debout 1 jambe",tip:"Isolation totale"},
         {name:"Good morning barre légère",tip:"Dos strictement plat"},
         {name:"Mollets debout lourds",tip:"Full amplitude, pause bas"},
       ]
     },
     finisher:{
-      debutant:  {name:"Circuit Squats",   tip:"Pendant 10 min : 20 squats air + 10 fentes / jambe, repos 60s."},
-      intermediaire:{name:"HIIT Jambes",   tip:"4 rounds : 30s Squat jumps → 30s Step-ups → 30s Repos."},
-      expert:    {name:"Explosif Jambes",  tip:"Pendant 15 min : 10 box jumps + 10 squat jumps, repos 45s."},
+      debutant:{name:"Circuit Squats",tip:"10 min · 20 squats air + 10 fentes/jambe → repos 60s → recommence"},
+      intermediaire:{name:"HIIT Jambes",tip:"4 rounds · 30s Squat jumps → 30s Step-ups → 30s Repos"},
+      expert:{name:"Explosif Jambes",tip:"15 min · 10 box jumps + 10 squat jumps → repos 45s → recommence"},
     }
   },
   full:{
     compound:{
       debutant:[
-        {name:"Squat gobelet haltère léger",tip:"Haltère contre la poitrine, talons au sol"},
+        {name:"Squat gobelet léger",tip:"Haltère contre la poitrine"},
         {name:"Développé machine pectoraux",tip:"Régler le siège, poussée symétrique"},
         {name:"Tirage horizontal poulie",tip:"Dos droit, tirer les coudes en arrière"},
-        {name:"Hip thrust poids de corps",tip:"Épaules sur banc, fessiers serrés en haut"},
+        {name:"Hip thrust poids de corps",tip:"Fessiers serrés en haut"},
       ],
       intermediaire:[
-        {name:"Squat gobelet (charge progressive)",tip:"Talons, genoux ouverts, dos droit"},
+        {name:"Squat gobelet progressif",tip:"Genoux ouverts, dos droit"},
         {name:"Développé haltères à plat",tip:"Étirement en bas, contraction forte"},
         {name:"Rowing 1 bras haltère",tip:"Pleine amplitude, omoplate active"},
         {name:"Romanian Deadlift haltères",tip:"Charnière hanche, dos plat"},
       ],
       expert:[
-        {name:"Squat barre (back squat)",tip:"Profondeur maximale, tempo contrôlé"},
+        {name:"Squat barre",tip:"Profondeur maximale"},
         {name:"Développé couché barre",tip:"Charge lourde, 5–6 reps"},
         {name:"Rowing barre penché",tip:"Dos horizontal, charge lourde"},
-        {name:"Deadlift conventionnel",tip:"Drive des talons, barre collée aux tibias"},
+        {name:"Deadlift conventionnel",tip:"Drive des talons, barre sur tibias"},
       ]
     },
     isolation:{
       debutant:[
-        {name:"Crunch sol",tip:"Mains sous la nuque, expiration en montant"},
-        {name:"Planche (30s)",tip:"Hanche neutre, respiration abdominale"},
-        {name:"Russian Twist poids de corps",tip:"Pieds décollés, rotation lente"},
+        {name:"Crunch sol",tip:"Expiration en montant"},
+        {name:"Planche (30s)",tip:"Hanche neutre"},
+        {name:"Russian Twist poids de corps",tip:"Rotation lente, pieds décollés"},
       ],
       intermediaire:[
-        {name:"Crunch câble / sol",tip:"Contraction forte en haut, descente lente"},
-        {name:"Relevé de jambes allongé",tip:"Bas du dos plaqué au sol"},
+        {name:"Crunch câble / sol",tip:"Contraction forte, descente lente"},
+        {name:"Relevé de jambes allongé",tip:"Dos plaqué au sol"},
         {name:"Planche dynamique",tip:"Avant-bras → mains → avant-bras"},
-        {name:"Russian Twist (médecine ball)",tip:"Obliques, dos légèrement incliné"},
+        {name:"Russian Twist médecine ball",tip:"Obliques, dos légèrement incliné"},
       ],
       expert:[
-        {name:"Relevé de jambes suspendu",tip:"Ne pas balancer, focus bas du ventre"},
-        {name:"Ab wheel rollout",tip:"Hanche tendue, rentrer le ventre"},
-        {name:"Hollow body hold (30s)",tip:"Dos plaqué, bras et jambes tendus"},
-        {name:"Dragon flag (progression)",tip:"Contrôle excentrique strict"},
+        {name:"Relevé de jambes suspendu",tip:"Ne pas balancer"},
+        {name:"Ab wheel rollout",tip:"Rentrer le ventre avant de revenir"},
+        {name:"Hollow body hold 30s",tip:"Dos plaqué, bras et jambes tendus"},
+        {name:"Dragon flag progression",tip:"Contrôle excentrique strict"},
       ]
     },
     finisher:{
-      debutant:  {name:"Cardio Léger",     tip:"Pendant 10 min : 30s jumping jacks → 30s marche → recommence."},
-      intermediaire:{name:"HIIT Full",     tip:"4 rounds : 20s Burpees → 20s Mountain climbers → 20s Repos."},
-      expert:    {name:"Tabata Lestés",    tip:"8 rounds : 20s Burpees lestés → 10s Repos. Puis 6 min cardio léger."},
+      debutant:{name:"Cardio Léger",tip:"10 min · 30s Jumping jacks → 30s Marche → recommence"},
+      intermediaire:{name:"HIIT Full",tip:"4 rounds · 20s Burpees → 20s Mountain climbers → 20s Repos"},
+      expert:{name:"Tabata Lestés",tip:"8 rounds · 20s Burpees lestés → 10s Repos"},
     }
   }
 };
 
-// ─── PROGRAM BUILDER ─────────────────────────────────────────────────────────
 const SESSIONS = {
-  push:{label:"PUSH", subtitle:"Pectoraux · Épaules · Triceps", color:"#FF6B1A", icon:"🔥", emoji:"⬆"},
-  pull:{label:"PULL", subtitle:"Dos · Biceps · Trapèzes",        color:"#FF9A3C", icon:"💪", emoji:"⬇"},
-  legs:{label:"LEGS", subtitle:"Quadriceps · Ischio · Fessiers", color:"#E84A0A", icon:"🌶", emoji:"↕"},
-  full:{label:"FULL", subtitle:"Full Body · Abdos · Cardio",     color:"#FFB84A", icon:"⚡", emoji:"✦"},
+  push:{label:"PUSH",sub:"Pectoraux · Épaules · Triceps",icon:"🔥"},
+  pull:{label:"PULL",sub:"Dos · Biceps · Trapèzes",       icon:"💪"},
+  legs:{label:"LEGS",sub:"Quadriceps · Ischio · Fessiers",icon:"🌶"},
+  full:{label:"FULL",sub:"Full Body · Abdos · Cardio",    icon:"⚡"},
 };
-const LEVELS = [
-  {key:"debutant",      label:"Débutant",      desc:"Machines & corps",         badge:"●○○"},
-  {key:"intermediaire", label:"Intermédiaire", desc:"Barre & haltères",         badge:"●●○"},
-  {key:"expert",        label:"Expert",        desc:"Charges lourdes & technique",badge:"●●●"},
+const LEVELS=[
+  {key:"debutant",      label:"DÉBUTANT",      sub:"Machines & corps",         dots:"● ○ ○"},
+  {key:"intermediaire", label:"INTERMÉDIAIRE", sub:"Barre & haltères",         dots:"● ● ○"},
+  {key:"expert",        label:"EXPERT",        sub:"Charges lourdes",           dots:"● ● ●"},
 ];
-const DURATIONS = [45,60,90,120];
+const DURATIONS=[45,60,90,120];
 
 function buildProgram(session, level, duration){
-  const bank = BANK[session];
-  const cfg = {
-    45: {warmup:5,  compoundN:2,compoundSets:3,isolN:1,isolSets:2,hasFinisher:false,finMin:0},
-    60: {warmup:8,  compoundN:2,compoundSets:3,isolN:2,isolSets:2,hasFinisher:true, finMin:8},
-    90: {warmup:10, compoundN:3,compoundSets:4,isolN:2,isolSets:3,hasFinisher:true, finMin:12},
-    120:{warmup:10, compoundN:3,compoundSets:4,isolN:3,isolSets:3,hasFinisher:true, finMin:18},
+  const bank=BANK[session];
+  const cfg={
+    45: {warmup:5,  cN:2,cS:3,iN:1,iS:2,fin:false,finMin:0},
+    60: {warmup:8,  cN:2,cS:3,iN:2,iS:2,fin:true, finMin:8},
+    90: {warmup:10, cN:3,cS:4,iN:2,iS:3,fin:true, finMin:12},
+    120:{warmup:10, cN:3,cS:4,iN:3,iS:3,fin:true, finMin:18},
   }[duration];
-  const reps = {
-    debutant:      {compound:"12–15",isolation:"15–20",rest:{compound:75, isolation:45}},
-    intermediaire: {compound:"8–12", isolation:"12–15",rest:{compound:90, isolation:60}},
-    expert:        {compound:"5–8",  isolation:"10–12",rest:{compound:120,isolation:75}},
+  const rep={
+    debutant:     {c:"12–15",i:"15–20",rc:75, ri:45},
+    intermediaire:{c:"8–12", i:"12–15",rc:90, ri:60},
+    expert:       {c:"5–8",  i:"10–12",rc:120,ri:75},
   }[level];
-  const phases = [];
-  phases.push({name:"Échauffement",duration:`${cfg.warmup} min`,exercises:[{
+  const phases=[];
+  phases.push({name:"ÉCHAUFFEMENT",dur:`${cfg.warmup} min`,exs:[{
     name:"Cardio léger + mobilité",sets:1,reps:`${cfg.warmup} min`,rest:0,isSimple:true,
-    tip:level==="debutant"?"Marche rapide ou vélo léger, FC 110–120 bpm":level==="intermediaire"?"Rameur ou vélo, FC 120–130 bpm + mobilité":"Rameur intensité progressive + activation dynamique"
+    tip:level==="debutant"?"Vélo ou marche rapide, FC 110–120 bpm":level==="intermediaire"?"Rameur, FC 120–130 bpm + mobilité":"Rameur intensité progressive + activation"
   }]});
-  const compounds = bank.compound[level].slice(0,cfg.compoundN).map(ex=>({...ex,sets:cfg.compoundSets,reps:reps.compound,rest:reps.rest.compound}));
-  const totalC = Math.round(cfg.compoundN*cfg.compoundSets*(reps.rest.compound/60+1));
-  phases.push({name:"Exercices Compound",duration:`~${totalC} min`,exercises:compounds});
-  const isos = bank.isolation[level].slice(0,cfg.isolN).map(ex=>({...ex,sets:cfg.isolSets,reps:reps.isolation,rest:reps.rest.isolation}));
-  const totalI = Math.round(cfg.isolN*cfg.isolSets*(reps.rest.isolation/60+0.75));
-  phases.push({name:"Isolation & Finition",duration:`~${totalI} min`,exercises:isos});
-  if(cfg.hasFinisher){
-    const fin=bank.finisher[level];
-    phases.push({name:"Finisher",duration:`${cfg.finMin} min`,exercises:[{name:fin.name,tip:fin.tip,sets:1,reps:`${cfg.finMin} min`,rest:0,isSimple:true}]});
+  phases.push({
+    name:"COMPOUND",dur:`~${Math.round(cfg.cN*cfg.cS*(rep.rc/60+1))} min`,
+    exs:bank.compound[level].slice(0,cfg.cN).map(e=>({...e,sets:cfg.cS,reps:rep.c,rest:rep.rc}))
+  });
+  phases.push({
+    name:"ISOLATION",dur:`~${Math.round(cfg.iN*cfg.iS*(rep.ri/60+0.75))} min`,
+    exs:bank.isolation[level].slice(0,cfg.iN).map(e=>({...e,sets:cfg.iS,reps:rep.i,rest:rep.ri}))
+  });
+  if(cfg.fin){
+    const f=bank.finisher[level];
+    phases.push({name:"FINISHER",dur:`${cfg.finMin} min`,exs:[{name:f.name,tip:f.tip,sets:1,reps:`${cfg.finMin} min`,rest:0,isSimple:true}]});
   }
   return phases;
 }
 
-// ─── REST TIMER ──────────────────────────────────────────────────────────────
-function RestTimer({seconds, onDone, exerciseName, accent}){
-  const endRef = useRef(Date.now() + seconds*1000);
-  const [left, setLeft] = useState(seconds);
-  const tickRef = useRef();
-
-  const tick = useCallback(()=>{
-    const rem = Math.max(0, Math.ceil((endRef.current - Date.now())/1000));
+// ─── REST TIMER (FORGE STYLE) ─────────────────────────────────────────────────
+function RestTimer({seconds, onDone, a}){
+  const endRef=useRef(Date.now()+seconds*1000);
+  const [left,setLeft]=useState(seconds);
+  const t=useRef();
+  const tick=useCallback(()=>{
+    const rem=Math.max(0,Math.ceil((endRef.current-Date.now())/1000));
     setLeft(rem);
-    if(rem <= 0){ onDone(); return; }
-    tickRef.current = setTimeout(tick, 250);
+    if(rem<=0){onDone();return;}
+    t.current=setTimeout(tick,250);
   },[onDone]);
-
   useEffect(()=>{
-    tickRef.current = setTimeout(tick, 100);
-    const onVis=()=>{ if(!document.hidden){ clearTimeout(tickRef.current); tick(); }};
-    document.addEventListener('visibilitychange', onVis);
-    return()=>{ clearTimeout(tickRef.current); document.removeEventListener('visibilitychange', onVis); };
+    t.current=setTimeout(tick,100);
+    const f=()=>{if(!document.hidden){clearTimeout(t.current);tick();}};
+    document.addEventListener('visibilitychange',f);
+    return()=>{clearTimeout(t.current);document.removeEventListener('visibilitychange',f);};
   },[tick]);
-
-  const pct=(seconds-left)/seconds, r=22, circ=2*Math.PI*r;
-  const col = left<=3 && left>0 ? "#FF2020" : accent;
+  const pct=(seconds-left)/seconds;
+  const red=left<=3&&left>0;
+  const col=red?"#FF2020":a;
   return(
-    <div style={{display:"flex",alignItems:"center",gap:14,background:`${accent}15`,border:`1px solid ${col}44`,borderRadius:12,padding:"10px 16px",marginTop:10}}>
-      <svg width={54} height={54} viewBox="0 0 54 54">
-        <circle cx={27} cy={27} r={r} fill="none" stroke="#2A2A2A" strokeWidth={4}/>
-        <circle cx={27} cy={27} r={r} fill="none" stroke={col} strokeWidth={4}
-          strokeDasharray={String(circ)} strokeDashoffset={String(circ*(1-pct))}
-          transform="rotate(-90 27 27)" style={{transition:"stroke-dashoffset 0.25s linear"}}/>
-        <text x={27} y={32} textAnchor="middle" style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,fill:col}}>{left}</text>
-      </svg>
-      <div>
-        <div style={{fontSize:11,color:"#888",letterSpacing:1}}>RÉCUPÉRATION</div>
-        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,color:col,letterSpacing:2}}>{left}s</div>
+    <div style={{marginTop:12,background:"#111",borderLeft:`3px solid ${col}`,padding:"10px 14px",display:"flex",alignItems:"center",gap:12}}>
+      {/* Big countdown number */}
+      <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:42,lineHeight:1,color:col,minWidth:60}}>{left}</div>
+      <div style={{flex:1}}>
+        <div style={{fontSize:9,letterSpacing:3,color:"#444",marginBottom:6}}>RÉCUPÉRATION</div>
+        <div style={{height:4,background:"#1A1A1A",borderRadius:0}}>
+          <div style={{height:"100%",width:`${pct*100}%`,background:col,transition:"width 0.25s linear"}}/>
+        </div>
       </div>
-      <button onClick={onDone} style={{marginLeft:"auto",background:"transparent",border:"1px solid #333",color:"#666",borderRadius:8,padding:"4px 12px",cursor:"pointer",fontSize:12}}>Skip</button>
+      <button onClick={onDone} style={{background:"transparent",border:"1px solid #333",color:"#555",padding:"4px 10px",cursor:"pointer",fontSize:11,fontFamily:"'Bebas Neue',sans-serif",letterSpacing:1}}>SKIP</button>
     </div>
   );
 }
 
-// ─── EXERCISE CARD ────────────────────────────────────────────────────────────
-function ExerciseCard({ex, accent, surface, border}){
-  const [done, setDone] = useState(new Array(ex.sets).fill(false));
-  const [timer, setTimer] = useState(null);
-  const toggle = i => {
-    const next=[...done]; next[i]=!next[i]; setDone(next);
-    if(next[i] && ex.rest>0) setTimer(ex.rest);
-  };
-  const allDone = done.every(Boolean);
+// ─── EXERCISE CARD (FORGE STYLE) ──────────────────────────────────────────────
+function ExCard({ex, a, s, b}){
+  const [done,setDone]=useState(new Array(ex.sets).fill(false));
+  const [timer,setTimer]=useState(null);
+  const toggle=i=>{const n=[...done];n[i]=!n[i];setDone(n);if(n[i]&&ex.rest>0)setTimer(ex.rest);};
+  const all=done.every(Boolean);
   return(
-    <div style={{
-      background:allDone?`${accent}14`:`${surface}`,
-      border:`1px solid ${allDone?accent+"55":border}`,
-      borderLeft:`3px solid ${allDone?accent:"#333"}`,
-      borderRadius:12, padding:"14px 16px", marginBottom:10, transition:"all 0.3s"
-    }}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+    <div style={{borderLeft:`3px solid ${all?a:"#222"}`,paddingLeft:12,marginBottom:14,transition:"border-color 0.3s"}}>
+      {/* Name row */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
         <div style={{flex:1}}>
-          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:17,letterSpacing:1,color:allDone?accent:"#FFFFFF",lineHeight:1.2}}>{ex.name}</div>
-          <div style={{fontSize:12,color:"#666",marginTop:4}}>
-            {ex.sets>1?`${ex.sets} séries × ${ex.reps}`:ex.reps}
-            {ex.rest>0&&<span style={{color:"#444"}}> · {ex.rest}s repos</span>}
+          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:1,color:all?a:"#FFF",lineHeight:1.1}}>{ex.name}</div>
+          <div style={{fontSize:11,color:"#444",marginTop:2,fontFamily:"'DM Sans'"}}>
+            {ex.sets>1?`${ex.sets} × ${ex.reps}`:ex.reps}
+            {ex.rest>0&&<span style={{color:"#333"}}> · {ex.rest}s repos</span>}
           </div>
-          {ex.tip&&<div style={{fontSize:11,color:"#555",marginTop:5,fontStyle:"italic",lineHeight:1.5,borderLeft:"2px solid #2A2A2A",paddingLeft:8}}>{ex.tip}</div>}
         </div>
-        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,flexShrink:0}}>
-          {allDone&&<div style={{width:28,height:28,borderRadius:"50%",background:`${accent}CC`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>✓</div>}
-          {/* Video link */}
+        <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0,marginLeft:8}}>
+          {all&&<span style={{fontSize:16,color:a}}>✓</span>}
           <a href={YT(ex.name)} target="_blank" rel="noopener noreferrer" style={{
-            width:36,height:36,borderRadius:8,
-            background:`${accent}18`,border:`1px solid ${accent}44`,
+            width:32,height:32,background:`${a}18`,border:`1px solid ${a}44`,
             display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
             textDecoration:"none",gap:1
           }}>
-            <span style={{fontSize:14,color:accent}}>▶</span>
-            <span style={{fontSize:7,color:accent,letterSpacing:0.5,fontFamily:"sans-serif",fontWeight:700}}>VID</span>
+            <span style={{fontSize:11,color:a}}>▶</span>
+            <span style={{fontSize:6,color:a,fontFamily:"'DM Sans'",fontWeight:700,letterSpacing:0.5}}>VID</span>
           </a>
         </div>
       </div>
+      {/* Tip */}
+      {ex.tip&&<div style={{fontSize:11,color:"#444",fontStyle:"italic",marginBottom:8,lineHeight:1.5}}>{ex.tip}</div>}
+      {/* Series buttons */}
       {!ex.isSimple&&ex.sets>1&&(
-        <div style={{display:"flex",gap:6,marginTop:12,flexWrap:"wrap"}}>
+        <div style={{display:"flex",gap:4,marginBottom:4}}>
           {done.map((d,i)=>(
             <button key={i} onClick={()=>toggle(i)} style={{
-              width:42,height:42,borderRadius:10,
-              border:`2px solid ${d?accent:border}`,
-              background:d?`${accent}28`:"transparent",
-              color:d?accent:"#555",
-              fontFamily:"'Bebas Neue',sans-serif",fontSize:15,cursor:"pointer",transition:"all 0.2s"
+              flex:1,height:38,border:`2px solid ${d?a:"#222"}`,
+              background:d?a:"transparent",
+              color:d?b||"#000":"#333",
+              fontFamily:"'Bebas Neue',sans-serif",fontSize:14,letterSpacing:1,
+              cursor:"pointer",transition:"all 0.15s"
             }}>S{i+1}</button>
           ))}
         </div>
       )}
       {ex.isSimple&&(
         <button onClick={()=>toggle(0)} style={{
-          marginTop:10,padding:"7px 18px",borderRadius:10,
-          border:`1px solid ${done[0]?accent:border}`,
-          background:done[0]?`${accent}22`:"transparent",
-          color:done[0]?accent:"#666",cursor:"pointer",fontSize:12,transition:"all 0.2s"
-        }}>{done[0]?"✓ Complété":"Marquer comme fait"}</button>
+          padding:"7px 16px",border:`1px solid ${done[0]?a:"#222"}`,
+          background:done[0]?a:"transparent",
+          color:done[0]?b||"#000":"#444",
+          fontFamily:"'Bebas Neue',sans-serif",fontSize:13,letterSpacing:1,
+          cursor:"pointer",transition:"all 0.15s"
+        }}>{done[0]?"✓ TERMINÉ":"MARQUER FAIT"}</button>
       )}
-      {timer&&<RestTimer seconds={timer} exerciseName={ex.name} accent={accent} onDone={()=>setTimer(null)}/>}
+      {timer&&<RestTimer seconds={timer} a={a} onDone={()=>setTimer(null)}/>}
     </div>
   );
 }
 
-// ─── WEIGHT CHART ────────────────────────────────────────────────────────────
+// ─── WEIGHT CHART ─────────────────────────────────────────────────────────────
 function WeightChart({entries, goal, color}){
   if(!entries||entries.length===0) return(
-    <div style={{textAlign:"center",padding:"32px 0",color:"#555",fontSize:13}}>
-      Aucune donnée encore.<br/>Ajoute ton premier poids ci-dessus.
+    <div style={{textAlign:"center",padding:"32px 0",color:"#333",fontSize:12,fontFamily:"'DM Sans'"}}>
+      Aucune donnée encore.
     </div>
   );
-  const W=340,H=160,padL=40,padR=20,padT=16,padB=28;
+  const W=320,H=140,pL=36,pR=16,pT=12,pB=24;
   const sorted=[...entries].sort((a,b)=>a.date.localeCompare(b.date));
-  const weights=sorted.map(e=>e.weight);
-  const allW=[...weights,goal];
-  const minW=Math.floor(Math.min(...allW)-1), maxW=Math.ceil(Math.max(...allW)+1);
-  const xScale=i=>sorted.length===1?padL+(W-padL-padR)/2:padL+(W-padL-padR)*(i/(sorted.length-1));
-  const yScale=w=>padT+(H-padT-padB)*(1-(w-minW)/(maxW-minW));
-  const goalY=yScale(goal);
-  const pts=sorted.map((e,i)=>({x:xScale(i),y:yScale(e.weight),w:e.weight,date:e.date}));
-  const pathD=pts.map((p,i)=>`${i===0?"M":"L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
-  const yTicks=[minW,Math.round((minW+maxW)/2),maxW];
-  const fmtDate=d=>{const p=d.split("-");return`${p[2]}/${p[1]}`;};
+  const ws=sorted.map(e=>e.weight);
+  const allW=[...ws,goal];
+  const minW=Math.floor(Math.min(...allW)-1),maxW=Math.ceil(Math.max(...allW)+1);
+  const xs=i=>sorted.length===1?pL+(W-pL-pR)/2:pL+(W-pL-pR)*(i/(sorted.length-1));
+  const ys=w=>pT+(H-pT-pB)*(1-(w-minW)/(maxW-minW));
+  const gy=ys(goal);
+  const pts=sorted.map((e,i)=>({x:xs(i),y:ys(e.weight),w:e.weight,d:e.date}));
+  const pd=pts.map((p,i)=>`${i===0?"M":"L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const fd=d=>{const p=d.split("-");return`${p[2]}/${p[1]}`;};
   return(
     <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{overflow:"visible"}}>
-      <defs>
-        <linearGradient id={`g${color.replace("#","")}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color}/>
-          <stop offset="100%" stopColor={color} stopOpacity="0"/>
-        </linearGradient>
-      </defs>
-      {yTicks.map(t=>(
+      <defs><linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color}/><stop offset="100%" stopColor={color} stopOpacity="0"/></linearGradient></defs>
+      {[minW,Math.round((minW+maxW)/2),maxW].map(t=>(
         <g key={t}>
-          <line x1={padL} y1={yScale(t)} x2={W-padR} y2={yScale(t)} stroke="#2A2A2A" strokeWidth={1} strokeDasharray="3,3"/>
-          <text x={padL-6} y={yScale(t)+4} textAnchor="end" style={{fontSize:9,fill:"#555"}}>{t}</text>
+          <line x1={pL} y1={ys(t)} x2={W-pR} y2={ys(t)} stroke="#1A1A1A" strokeWidth={1}/>
+          <text x={pL-4} y={ys(t)+4} textAnchor="end" style={{fontSize:8,fill:"#444",fontFamily:"'DM Sans'"}}>{t}</text>
         </g>
       ))}
-      <line x1={padL} y1={goalY} x2={W-padR} y2={goalY} stroke={color} strokeWidth={1.5} strokeDasharray="6,4" opacity={0.6}/>
-      <text x={W-padR+4} y={goalY+4} style={{fontSize:9,fill:color}}>Obj</text>
-      {pts.length>1&&(
-        <path d={`${pathD} L${pts[pts.length-1].x},${H-padB} L${pts[0].x},${H-padB} Z`}
-          fill={`url(#g${color.replace("#","")})`} opacity={0.15}/>
-      )}
-      {pts.length>1&&<path d={pathD} fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"/>}
+      <line x1={pL} y1={gy} x2={W-pR} y2={gy} stroke={color} strokeWidth={1} strokeDasharray="4,3" opacity={0.5}/>
+      <text x={W-pR+3} y={gy+4} style={{fontSize:8,fill:color,fontFamily:"'DM Sans'"}}>Obj</text>
+      {pts.length>1&&<path d={`${pd} L${pts[pts.length-1].x},${H-pB} L${pts[0].x},${H-pB} Z`} fill="url(#gc)" opacity={0.12}/>}
+      {pts.length>1&&<path d={pd} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>}
       {pts.map((p,i)=>(
         <g key={i}>
-          <circle cx={p.x} cy={p.y} r={5} fill="#0A0A0A" stroke={color} strokeWidth={2.5}/>
-          <circle cx={p.x} cy={p.y} r={2.5} fill={color}/>
-          <text x={p.x} y={p.y-10} textAnchor="middle" style={{fontSize:9,fill:"#888"}}>{p.w}kg</text>
-          {(i===0||i===pts.length-1||pts.length<=5)&&(
-            <text x={p.x} y={H-padB+14} textAnchor="middle" style={{fontSize:8,fill:"#555"}}>{fmtDate(p.date)}</text>
-          )}
+          <circle cx={p.x} cy={p.y} r={4} fill="#0A0A0A" stroke={color} strokeWidth={2}/>
+          <text x={p.x} y={p.y-8} textAnchor="middle" style={{fontSize:8,fill:"#666",fontFamily:"'DM Sans'"}}>{p.w}</text>
+          {(i===0||i===pts.length-1||pts.length<=4)&&<text x={p.x} y={H-pB+12} textAnchor="middle" style={{fontSize:7,fill:"#333",fontFamily:"'DM Sans'"}}>{fd(p.d)}</text>}
         </g>
       ))}
     </svg>
   );
 }
 
-// ─── PROGRESSION ─────────────────────────────────────────────────────────────
-function Progression({profileId, palette}){
-  const def=PROFILE_DEFS[profileId];
-  const storKey=`abdfit_progress_${profileId}`;
-  const cfgKey=`abdfit_profilecfg_${profileId}`;
-  const [entries,setEntries]=useState(()=>LS.get(storKey,[]));
-  const [cfg,setCfg]=useState(()=>LS.get(cfgKey,{goal:def.defaultGoal}));
-  const [newW,setNewW]=useState("");
-  const [newD,setNewD]=useState(()=>new Date().toISOString().split("T")[0]);
-  const [editGoal,setEditGoal]=useState(false);
-  const [goalInput,setGoalInput]=useState(String(cfg.goal||def.defaultGoal));
-  const accent=palette.accent;
-  const saveEntries=e=>{setEntries(e);LS.set(storKey,e);};
-  const addEntry=()=>{
-    const w=parseFloat(newW);
-    if(isNaN(w)||w<20||w>300) return;
-    const next=[...entries.filter(e=>e.date!==newD),{date:newD,weight:w}];
-    saveEntries(next); setNewW("");
-  };
-  const removeEntry=date=>saveEntries(entries.filter(e=>e.date!==date));
-  const saveGoal=()=>{
-    const g=parseFloat(goalInput);
-    if(isNaN(g)) return;
-    const nc={...cfg,goal:g};setCfg(nc);LS.set(cfgKey,nc);setEditGoal(false);
-  };
+// ─── PROGRESSION ──────────────────────────────────────────────────────────────
+function Progression({profileId, pal}){
+  const def=PROFILES[profileId];
+  const sKey=`af_prog_${profileId}`, cKey=`af_cfg_${profileId}`;
+  const [entries,setEntries]=useState(()=>LS.get(sKey,[]));
+  const [cfg,setCfg]=useState(()=>LS.get(cKey,{goal:def.defaultGoal}));
+  const [nW,setNW]=useState(""),  [nD,setND]=useState(()=>new Date().toISOString().split("T")[0]);
+  const [editG,setEditG]=useState(false), [gIn,setGIn]=useState(String(cfg.goal||def.defaultGoal));
+  const A=pal.a;
+  const save=e=>{setEntries(e);LS.set(sKey,e);};
+  const add=()=>{const w=parseFloat(nW);if(isNaN(w)||w<20||w>300)return;save([...entries.filter(e=>e.date!==nD),{date:nD,weight:w}]);setNW("");};
+  const del=d=>save(entries.filter(e=>e.date!==d));
+  const saveG=()=>{const g=parseFloat(gIn);if(isNaN(g))return;const nc={...cfg,goal:g};setCfg(nc);LS.set(cKey,nc);setEditG(false);};
   const sorted=[...entries].sort((a,b)=>b.date.localeCompare(a.date));
   const latest=sorted[0];
   const first=entries.length>0?[...entries].sort((a,b)=>a.date.localeCompare(b.date))[0]:null;
   const diff=latest&&first?+(latest.weight-first.weight).toFixed(1):null;
   const toGoal=latest?(+(latest.weight-(cfg.goal||def.defaultGoal)).toFixed(1)):null;
-  const A=accent;
   return(
-    <div style={{padding:"0 18px 40px",maxWidth:480,margin:"0 auto"}}>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:20}} className="fade-up">
+    <div style={{padding:"0 16px 40px",maxWidth:480,margin:"0 auto"}}>
+      {/* Stats */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:1,marginBottom:20,border:`1px solid #1A1A1A`}} className="su">
         {[
-          {label:"ACTUEL",  value:latest?`${latest.weight}kg`:"—", color:A},
-          {label:"VARIATION",value:diff!==null?(diff>0?`+${diff}kg`:`${diff}kg`):"—",color:diff!==null&&diff<0?"#7DFF9A":diff>0?"#FF4040":"#888"},
-          {label:"OBJECTIF",value:`${cfg.goal||def.defaultGoal}kg`,color:"#FFB84A"},
+          {l:"ACTUEL",  v:latest?`${latest.weight}kg`:"—",  c:A},
+          {l:"ÉCART",   v:diff!==null?(diff>0?`+${diff}`:diff)+"kg":"—", c:diff!==null&&diff<0?"#60FF80":diff>0?"#FF4040":"#555"},
+          {l:"OBJECTIF",v:`${cfg.goal||def.defaultGoal}kg`, c:"#888"},
         ].map(s=>(
-          <div key={s.label} style={{background:palette.surface,border:`1px solid ${palette.border}`,borderRadius:12,padding:"12px 10px",textAlign:"center"}}>
-            <div style={{fontSize:9,letterSpacing:2,color:"#555",marginBottom:4}}>{s.label}</div>
-            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,color:s.color,letterSpacing:1}}>{s.value}</div>
+          <div key={s.l} style={{background:"#111",padding:"14px 10px",textAlign:"center",borderRight:"1px solid #1A1A1A"}}>
+            <div style={{fontSize:8,letterSpacing:3,color:"#333",marginBottom:6}}>{s.l}</div>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:24,color:s.c,letterSpacing:1}}>{s.v}</div>
           </div>
         ))}
       </div>
-      <div style={{marginBottom:16,display:"flex",alignItems:"center",gap:8}} className="fade-up">
-        {editGoal?(
+
+      {/* Goal edit */}
+      <div style={{marginBottom:16,display:"flex",alignItems:"center",gap:8}} className="su">
+        {editG?(
           <>
-            <input type="number" value={goalInput} onChange={e=>setGoalInput(e.target.value)}
-              style={{flex:1,background:palette.surface,border:`1px solid ${A}`,borderRadius:8,padding:"8px 12px",color:"#FFF",fontSize:14}}/>
-            <button onClick={saveGoal} style={{padding:"8px 16px",borderRadius:8,background:A,border:"none",color:"#000",fontFamily:"'Bebas Neue',sans-serif",fontSize:14,cursor:"pointer"}}>OK</button>
-            <button onClick={()=>setEditGoal(false)} style={{padding:"8px 12px",borderRadius:8,background:"transparent",border:`1px solid ${palette.border}`,color:"#666",cursor:"pointer",fontSize:12}}>✕</button>
+            <input type="number" value={gIn} onChange={e=>setGIn(e.target.value)}
+              style={{flex:1,background:"#111",border:`1px solid ${A}`,padding:"8px 10px",color:"#FFF",fontSize:13,fontFamily:"'DM Sans'"}}/>
+            <button onClick={saveG} style={{padding:"8px 14px",background:A,border:"none",color:"#000",fontFamily:"'Bebas Neue',sans-serif",fontSize:14,letterSpacing:1,cursor:"pointer"}}>OK</button>
+            <button onClick={()=>setEditG(false)} style={{padding:"8px 10px",background:"transparent",border:"1px solid #222",color:"#555",cursor:"pointer",fontSize:11}}>✕</button>
           </>
         ):(
-          <button onClick={()=>setEditGoal(true)} style={{background:`${A}18`,border:`1px solid ${A}44`,color:A,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:12}}>
-            ✎ Modifier l'objectif · {cfg.goal||def.defaultGoal}kg
+          <button onClick={()=>setEditG(true)} style={{background:"transparent",border:`1px solid #222`,color:"#555",padding:"7px 12px",cursor:"pointer",fontSize:11,fontFamily:"'DM Sans'"}}>
+            ✎ Objectif : {cfg.goal||def.defaultGoal}kg
           </button>
         )}
-        {toGoal!==null&&<div style={{fontSize:11,color:"#555",marginLeft:"auto"}}>{toGoal>0?`encore ${toGoal}kg`:"🎯 Objectif atteint !"}</div>}
+        {toGoal!==null&&<div style={{fontSize:11,color:"#444",marginLeft:"auto"}}>{toGoal>0?`−${toGoal}kg restants`:"🎯 Atteint !"}</div>}
       </div>
-      <div style={{background:palette.surface,border:`1px solid ${palette.border}`,borderRadius:14,padding:"16px",marginBottom:16}} className="fade-up">
-        <div style={{fontSize:10,letterSpacing:2,color:"#555",marginBottom:12}}>COURBE DE POIDS</div>
+
+      {/* Chart */}
+      <div style={{background:"#111",border:"1px solid #1A1A1A",padding:"16px",marginBottom:16}} className="su">
+        <div style={{fontSize:9,letterSpacing:3,color:"#333",marginBottom:12}}>COURBE DE POIDS</div>
         <WeightChart entries={entries} goal={cfg.goal||def.defaultGoal} color={def.color}/>
       </div>
-      <div style={{background:palette.surface,border:`1px solid ${palette.border}`,borderRadius:14,padding:"16px",marginBottom:16}} className="fade-up">
-        <div style={{fontSize:10,letterSpacing:2,color:"#555",marginBottom:12}}>AJOUTER UN POIDS</div>
-        <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <input type="date" value={newD} onChange={e=>setNewD(e.target.value)}
-            style={{flex:1,background:"#111",border:`1px solid ${palette.border}`,borderRadius:8,padding:"10px",color:"#FFF",fontSize:13}}/>
-          <input type="number" placeholder="kg" value={newW} onChange={e=>setNewW(e.target.value)}
-            style={{width:80,background:"#111",border:`1px solid ${palette.border}`,borderRadius:8,padding:"10px",color:"#FFF",fontSize:14,textAlign:"center"}}/>
-          <button onClick={addEntry} style={{padding:"10px 18px",borderRadius:8,background:A,border:"none",color:"#000",fontFamily:"'Bebas Neue',sans-serif",fontSize:16,cursor:"pointer"}}>+</button>
+
+      {/* Add */}
+      <div style={{background:"#111",border:"1px solid #1A1A1A",padding:"14px",marginBottom:16}} className="su">
+        <div style={{fontSize:9,letterSpacing:3,color:"#333",marginBottom:10}}>AJOUTER</div>
+        <div style={{display:"flex",gap:6}}>
+          <input type="date" value={nD} onChange={e=>setND(e.target.value)}
+            style={{flex:1,background:"#0A0A0A",border:"1px solid #1A1A1A",padding:"9px 8px",color:"#FFF",fontSize:12,fontFamily:"'DM Sans'"}}/>
+          <input type="number" placeholder="kg" value={nW} onChange={e=>setNW(e.target.value)}
+            style={{width:70,background:"#0A0A0A",border:"1px solid #1A1A1A",padding:"9px 8px",color:"#FFF",fontSize:14,textAlign:"center",fontFamily:"'DM Sans'"}}/>
+          <button onClick={add} style={{padding:"9px 16px",background:A,border:"none",color:"#000",fontFamily:"'Bebas Neue',sans-serif",fontSize:18,cursor:"pointer"}}>+</button>
         </div>
       </div>
+
+      {/* History */}
       {sorted.length>0&&(
-        <div style={{background:palette.surface,border:`1px solid ${palette.border}`,borderRadius:14,padding:"16px"}} className="fade-up">
-          <div style={{fontSize:10,letterSpacing:2,color:"#555",marginBottom:12}}>HISTORIQUE</div>
+        <div style={{background:"#111",border:"1px solid #1A1A1A",padding:"14px"}} className="su">
+          <div style={{fontSize:9,letterSpacing:3,color:"#333",marginBottom:10}}>HISTORIQUE</div>
           {sorted.slice(0,10).map((e,i)=>(
-            <div key={e.date} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0",borderBottom:i<sorted.length-1?`1px solid ${palette.border}`:"none"}}>
-              <div style={{fontSize:12,color:"#555"}}>{new Date(e.date+"T12:00:00").toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"})}</div>
-              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,color:A,letterSpacing:1}}>{e.weight} kg</div>
-              <button onClick={()=>removeEntry(e.date)} style={{background:"transparent",border:"none",color:"#444",cursor:"pointer",fontSize:16,padding:"0 4px"}}>×</button>
+            <div key={e.date} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0",borderBottom:i<sorted.length-1?"1px solid #141414":"none"}}>
+              <div style={{fontSize:11,color:"#444",fontFamily:"'DM Sans'"}}>{new Date(e.date+"T12:00:00").toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"})}</div>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,color:A,letterSpacing:1}}>{e.weight} kg</div>
+              <button onClick={()=>del(e.date)} style={{background:"transparent",border:"none",color:"#333",cursor:"pointer",fontSize:16,padding:"0 4px"}}>×</button>
             </div>
           ))}
         </div>
@@ -572,87 +543,78 @@ function Progression({profileId, palette}){
   );
 }
 
-// ─── WORKOUT SCREEN ───────────────────────────────────────────────────────────
-function Workout({session, level, duration, onBack, palette}){
+// ─── WORKOUT ──────────────────────────────────────────────────────────────────
+function Workout({session, level, duration, onBack, pal}){
   const [elapsed,setElapsed]=useState(0);
   const [running,setRunning]=useState(false);
-  const startRef=useRef(null);
-  const savedRef=useRef(0);
-  const intervalRef=useRef();
-  const wakeLockRef=useRef(null);
-  const sess=SESSIONS[session];
-  const A=palette.accent;
+  const startRef=useRef(null), savedRef=useRef(0), ivRef=useRef(), wlRef=useRef(null);
+  const A=pal.a;
 
-  const requestWakeLock=async()=>{
-    try{ if('wakeLock' in navigator) wakeLockRef.current=await navigator.wakeLock.request('screen'); }catch(e){}
-  };
-  const releaseWakeLock=()=>{
-    try{ if(wakeLockRef.current){wakeLockRef.current.release();wakeLockRef.current=null;} }catch(e){}
-  };
+  const reqWL=async()=>{try{if('wakeLock' in navigator)wlRef.current=await navigator.wakeLock.request('screen');}catch(e){}};
+  const relWL=()=>{try{if(wlRef.current){wlRef.current.release();wlRef.current=null;}}catch(e){}};
   useEffect(()=>{
-    const onVis=()=>{ if(!document.hidden&&running) requestWakeLock(); };
-    document.addEventListener('visibilitychange',onVis);
-    return()=>{ document.removeEventListener('visibilitychange',onVis); releaseWakeLock(); };
+    const f=()=>{if(!document.hidden&&running)reqWL();};
+    document.addEventListener('visibilitychange',f);
+    return()=>{document.removeEventListener('visibilitychange',f);relWL();};
   },[running]);
 
-  const toggleRunning=()=>{
+  const toggle=()=>{
     setRunning(p=>{
-      const next=!p;
-      if(next){ startRef.current=Date.now()-savedRef.current*1000; requestWakeLock(); }
-      else { savedRef.current=elapsed; clearInterval(intervalRef.current); releaseWakeLock(); }
-      return next;
+      const n=!p;
+      if(n){startRef.current=Date.now()-savedRef.current*1000;reqWL();}
+      else{savedRef.current=elapsed;clearInterval(ivRef.current);relWL();}
+      return n;
     });
   };
   useEffect(()=>{
-    if(!running) return;
-    intervalRef.current=setInterval(()=>setElapsed(Math.floor((Date.now()-startRef.current)/1000)),500);
-    const onVis=()=>{ if(!document.hidden&&startRef.current) setElapsed(Math.floor((Date.now()-startRef.current)/1000)); };
-    document.addEventListener('visibilitychange',onVis);
-    return()=>{ clearInterval(intervalRef.current); document.removeEventListener('visibilitychange',onVis); };
+    if(!running)return;
+    ivRef.current=setInterval(()=>setElapsed(Math.floor((Date.now()-startRef.current)/1000)),500);
+    const f=()=>{if(!document.hidden&&startRef.current)setElapsed(Math.floor((Date.now()-startRef.current)/1000));};
+    document.addEventListener('visibilitychange',f);
+    return()=>{clearInterval(ivRef.current);document.removeEventListener('visibilitychange',f);};
   },[running]);
 
   const phases=useMemo(()=>buildProgram(session,level,duration),[session,level,duration]);
   const fmt=s=>`${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
-  const lvLabel=LEVELS.find(l=>l.key===level).label;
 
   return(
-    <div style={{minHeight:"100vh",background:`radial-gradient(ellipse at top,${palette.top||"#2A1400"} 0%,${palette.bg} 55%)`,paddingBottom:100}}>
-      <div style={{position:"sticky",top:0,zIndex:100,background:`${palette.bg}F0`,padding:"14px 18px 12px",borderBottom:`1px solid ${palette.border}`,backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,maxWidth:480,margin:"0 auto"}}>
-          <button onClick={onBack} style={{background:"transparent",border:`1px solid ${palette.border}`,color:"#666",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:13}}>←</button>
+    <div style={{minHeight:"100vh",background:pal.bg,paddingBottom:80}}>
+      {/* Sticky header */}
+      <div style={{position:"sticky",top:0,zIndex:100,background:pal.bg,borderBottom:`1px solid #1A1A1A`,padding:"12px 16px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,maxWidth:480,margin:"0 auto"}}>
+          <button onClick={onBack} style={{background:"transparent",border:"1px solid #222",color:"#555",padding:"5px 10px",cursor:"pointer",fontFamily:"'Bebas Neue',sans-serif",fontSize:14,letterSpacing:1}}>← RETOUR</button>
           <div style={{flex:1}}>
-            <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-              <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:2,color:A}}>{sess.label}</span>
-              <span style={{fontSize:10,padding:"2px 7px",borderRadius:20,background:`${A}22`,color:A}}>{lvLabel.toUpperCase()}</span>
-              <span style={{fontSize:10,padding:"2px 7px",borderRadius:20,background:"#2A2A2A",color:"#888"}}>{duration}MIN</span>
-            </div>
-            <div style={{fontSize:11,color:"#555"}}>{sess.subtitle}</div>
+            {/* Accent bar */}
+            <div style={{height:2,width:32,background:A,marginBottom:4}}/>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:2,color:pal.t||"#FFF",lineHeight:1}}>{SESSIONS[session].label}</div>
+            <div style={{fontSize:10,color:"#444",letterSpacing:1}}>{LEVELS.find(l=>l.key===level).label} · {duration} MIN</div>
           </div>
           <div style={{textAlign:"right"}}>
-            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:19,letterSpacing:2,color:running?A:"#444"}}>{fmt(elapsed)}</div>
-            <button onClick={toggleRunning} style={{fontSize:10,padding:"2px 10px",borderRadius:6,border:`1px solid ${running?A+"55":"#333"}`,background:running?`${A}18`:"transparent",color:running?A:"#555",cursor:"pointer"}}>{running?"⏸":"▶ Start"}</button>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:2,color:running?A:"#333",fontFamily:"monospace"}}>{fmt(elapsed)}</div>
+            <button onClick={toggle} style={{background:running?A:"transparent",border:`1px solid ${running?A:"#222"}`,color:running?"#000":"#555",padding:"3px 10px",cursor:"pointer",fontFamily:"'Bebas Neue',sans-serif",fontSize:12,letterSpacing:1,transition:"all 0.2s"}}>{running?"⏸ PAUSE":"▶ START"}</button>
           </div>
         </div>
       </div>
-      <div style={{padding:"16px 18px",maxWidth:480,margin:"0 auto"}}>
+
+      {/* Phases */}
+      <div style={{padding:"16px",maxWidth:480,margin:"0 auto"}}>
         {phases.map((phase,pi)=>(
-          <div key={pi} style={{marginBottom:24}} className="fade-up">
-            <div style={{display:"flex",alignItems:"center",marginBottom:12,gap:10}}>
-              <div style={{width:26,height:26,borderRadius:"50%",background:`${A}33`,border:`1px solid ${A}55`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue',sans-serif",fontSize:12,color:A,flexShrink:0}}>{pi+1}</div>
-              <div style={{flex:1}}>
-                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:14,letterSpacing:2,color:"#FFF"}}>{phase.name.toUpperCase()}</div>
-                <div style={{fontSize:11,color:"#555"}}>{phase.duration}</div>
-              </div>
+          <div key={pi} style={{marginBottom:28}} className="su">
+            {/* Phase header */}
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:11,letterSpacing:4,color:A}}>{phase.name}</div>
+              <div style={{flex:1,height:1,background:"#1A1A1A"}}/>
+              <div style={{fontSize:10,color:"#333"}}>{phase.dur}</div>
             </div>
-            {phase.exercises.map((ex,ei)=>(
-              <ExerciseCard key={`${pi}-${ei}`} ex={ex} accent={A} surface={palette.surface} border={palette.border}/>
-            ))}
+            {phase.exs.map((ex,ei)=><ExCard key={`${pi}-${ei}`} ex={ex} a={A} s={pal.s} b={pal.b}/>)}
           </div>
         ))}
-        <div style={{padding:"14px 16px",background:palette.surface,borderRadius:12,border:`1px solid ${palette.border}`,borderLeft:`3px solid ${A}`}}>
-          <div style={{fontSize:10,letterSpacing:2,color:A,marginBottom:6}}>💡 NUTRITION</div>
-          <div style={{fontSize:12,color:"#666",lineHeight:1.7}}>
-            {level==="debutant"?"1.6–1.8g de protéines/kg. La progression passe avant la restriction calorique.":level==="intermediaire"?"Vise -350 kcal/jour. 1.8–2g de protéines/kg. Augmente les charges d'abord.":"Recomposition : maintien calorique ±100 kcal + 2–2.2g protéines/kg."}
+
+        {/* Nutrition note */}
+        <div style={{borderLeft:`3px solid ${A}`,paddingLeft:12,marginTop:8}}>
+          <div style={{fontSize:9,letterSpacing:3,color:A,marginBottom:4}}>NUTRITION</div>
+          <div style={{fontSize:12,color:"#555",lineHeight:1.6}}>
+            {level==="debutant"?"1.6–1.8g de protéines/kg. Progression avant restriction calorique.":level==="intermediaire"?"−350 kcal/jour. 1.8–2g de protéines/kg. Augmente les charges en priorité.":"Maintien calorique ±100 kcal + 2–2.2g protéines/kg. Cycle carbs autour des séances."}
           </div>
         </div>
       </div>
@@ -660,116 +622,153 @@ function Workout({session, level, duration, onBack, palette}){
   );
 }
 
-// ─── SESSION CONFIG ───────────────────────────────────────────────────────────
-function SessionConfig({profileId, palette, onStart}){
-  const cfgKey=`abdfit_profilecfg_${profileId}`;
-  const savedCfg=LS.get(cfgKey,{});
-  const def=PROFILE_DEFS[profileId];
-  const [session,setSession]=useState("push");
-  const [level,setLevel]=useState(savedCfg.level||def.defaultLevel);
-  const [duration,setDuration]=useState(savedCfg.duration||def.defaultDuration);
-  const A=palette.accent;
-  const savePref=()=>{const c=LS.get(cfgKey,{});LS.set(cfgKey,{...c,level,duration});};
+// ─── SESSION CONFIG ────────────────────────────────────────────────────────────
+function SessionConfig({profileId, pal, onStart}){
+  const cKey=`af_cfg_${profileId}`;
+  const saved=LS.get(cKey,{});
+  const def=PROFILES[profileId];
+  const [sess,setSess]=useState("push");
+  const [lvl,setLvl]=useState(saved.level||def.defaultLevel);
+  const [dur,setDur]=useState(saved.duration||def.defaultDuration);
+  const A=pal.a;
+  const save=()=>{const c=LS.get(cKey,{});LS.set(cKey,{...c,level:lvl,duration:dur});};
   return(
-    <div style={{padding:"16px 18px 100px",maxWidth:480,margin:"0 auto"}}>
-      <div style={{marginBottom:24}} className="fade-up">
-        <div style={{fontSize:10,letterSpacing:3,color:"#555",marginBottom:10}}>SÉANCE DU JOUR</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+    <div style={{padding:"16px 16px 100px",maxWidth:480,margin:"0 auto"}}>
+
+      {/* SESSION SELECTOR */}
+      <div style={{marginBottom:24}} className="su">
+        <div style={{fontSize:9,letterSpacing:3,color:"#333",marginBottom:10}}>SÉANCE DU JOUR</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           {Object.entries(SESSIONS).map(([k,s])=>{
-            const active=session===k;
+            const active=sess===k;
             return(
-              <button key={k} onClick={()=>setSession(k)} style={{padding:"14px 10px",borderRadius:14,cursor:"pointer",border:`2px solid ${active?s.color:palette.border}`,background:active?`${s.color}20`:palette.surface,textAlign:"left",transition:"all 0.25s",transform:active?"scale(1.02)":"scale(1)"}}>
-                <div style={{fontSize:20,marginBottom:6}}>{s.icon}</div>
-                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:19,letterSpacing:2,color:active?s.color:"#FFF"}}>{s.label}</div>
-                <div style={{fontSize:11,color:"#666",marginTop:2}}>{s.subtitle}</div>
+              <button key={k} onClick={()=>setSess(k)} style={{
+                padding:"14px 12px",cursor:"pointer",textAlign:"left",
+                border:`1px solid ${active?A:"#1A1A1A"}`,
+                background:active?`${A}14`:"#111",
+                transition:"all 0.2s"
+              }}>
+                {active&&<div style={{height:2,width:24,background:A,marginBottom:8}}/>}
+                <div style={{fontSize:9,color:active?A:"#333",marginBottom:4}}>{s.icon}</div>
+                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:2,color:active?A:"#FFF"}}>{s.label}</div>
+                <div style={{fontSize:10,color:"#444",marginTop:2}}>{s.sub}</div>
               </button>
             );
           })}
         </div>
       </div>
-      <div style={{marginBottom:24}} className="fade-up">
-        <div style={{fontSize:10,letterSpacing:3,color:"#555",marginBottom:10}}>NIVEAU</div>
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {LEVELS.map(lv=>{
-            const active=level===lv.key;
+
+      {/* LEVEL */}
+      <div style={{marginBottom:24}} className="su">
+        <div style={{fontSize:9,letterSpacing:3,color:"#333",marginBottom:10}}>NIVEAU</div>
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          {LEVELS.map(l=>{
+            const active=lvl===l.key;
             return(
-              <button key={lv.key} onClick={()=>setLevel(lv.key)} style={{display:"flex",alignItems:"center",gap:14,padding:"12px 14px",borderRadius:12,cursor:"pointer",border:`2px solid ${active?A:palette.border}`,background:active?`${A}18`:palette.surface,textAlign:"left",transition:"all 0.2s"}}>
-                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:17,color:active?A:"#444",minWidth:32}}>{lv.badge}</div>
-                <div>
-                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,letterSpacing:1,color:active?"#FFF":"#888"}}>{lv.label}</div>
-                  <div style={{fontSize:11,color:"#555"}}>{lv.desc}</div>
+              <button key={l.key} onClick={()=>setLvl(l.key)} style={{
+                display:"flex",alignItems:"center",gap:14,
+                padding:"12px 14px",cursor:"pointer",textAlign:"left",
+                border:`1px solid ${active?A:"#1A1A1A"}`,
+                background:active?`${A}14`:"#111",
+                transition:"all 0.2s"
+              }}>
+                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:13,color:active?A:"#333",letterSpacing:2,minWidth:40}}>{l.dots}</div>
+                <div style={{flex:1}}>
+                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,letterSpacing:2,color:active?"#FFF":"#555"}}>{l.label}</div>
+                  <div style={{fontSize:10,color:"#444"}}>{l.sub}</div>
                 </div>
-                {active&&<div style={{marginLeft:"auto",width:8,height:8,borderRadius:"50%",background:A,boxShadow:`0 0 8px ${A}`}}/>}
+                {active&&<div style={{width:6,height:6,background:A,boxShadow:`0 0 6px ${A}`}}/>}
               </button>
             );
           })}
         </div>
       </div>
-      <div style={{marginBottom:28}} className="fade-up">
-        <div style={{fontSize:10,letterSpacing:3,color:"#555",marginBottom:10}}>DURÉE</div>
-        <div style={{display:"flex",gap:10}}>
+
+      {/* DURATION */}
+      <div style={{marginBottom:28}} className="su">
+        <div style={{fontSize:9,letterSpacing:3,color:"#333",marginBottom:10}}>DURÉE</div>
+        <div style={{display:"flex",gap:6}}>
           {DURATIONS.map(d=>{
-            const active=duration===d;
+            const active=dur===d;
             return(
-              <button key={d} onClick={()=>setDuration(d)} style={{flex:1,padding:"14px 4px",borderRadius:12,cursor:"pointer",border:`2px solid ${active?A:palette.border}`,background:active?`${A}22`:palette.surface,transition:"all 0.2s",transform:active?"scale(1.04)":"scale(1)"}}>
-                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,color:active?A:"#555"}}>{d}</div>
-                <div style={{fontSize:10,color:active?A:"#444"}}>min</div>
+              <button key={d} onClick={()=>setDur(d)} style={{
+                flex:1,padding:"14px 4px",cursor:"pointer",
+                border:`1px solid ${active?A:"#1A1A1A"}`,
+                background:active?`${A}14`:"#111",
+                transition:"all 0.2s"
+              }}>
+                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:26,color:active?A:"#444"}}>{d}</div>
+                <div style={{fontSize:9,color:active?A:"#333",letterSpacing:1}}>MIN</div>
               </button>
             );
           })}
         </div>
       </div>
-      <button onClick={()=>{savePref();onStart(session,level,duration);}} style={{width:"100%",padding:"18px",borderRadius:16,cursor:"pointer",border:`2px solid ${SESSIONS[session].color}`,background:`linear-gradient(135deg,${SESSIONS[session].color},${SESSIONS[session].color}CC)`,boxShadow:`0 8px 28px ${SESSIONS[session].color}44`,fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:3,color:"#0A0A0A",transition:"all 0.2s"}}>
-        LANCER {SESSIONS[session].emoji}
+
+      {/* CTA */}
+      <button onClick={()=>{save();onStart(sess,lvl,dur);}} style={{
+        width:"100%",padding:"18px",cursor:"pointer",
+        border:`2px solid ${A}`,background:A,
+        fontFamily:"'Bebas Neue',sans-serif",fontSize:24,letterSpacing:4,
+        color:"#000",transition:"all 0.2s"
+      }}>
+        LANCER LA SÉANCE {SESSIONS[sess].icon}
       </button>
     </div>
   );
 }
 
-// ─── PROFIL SCREEN ────────────────────────────────────────────────────────────
-function ProfilScreen({activeProfile, onSwitch, palette}){
+// ─── PROFIL ────────────────────────────────────────────────────────────────────
+function ProfilScreen({activeProfile, onSwitch, pal}){
   return(
-    <div style={{padding:"16px 18px 100px",maxWidth:480,margin:"0 auto"}}>
-      <div style={{fontSize:10,letterSpacing:3,color:"#555",marginBottom:14}} className="fade-up">CHOISIR UN PROFIL</div>
-      <div style={{display:"flex",flexDirection:"column",gap:12}}>
-        {Object.values(PROFILE_DEFS).map(p=>{
+    <div style={{padding:"16px 16px 100px",maxWidth:480,margin:"0 auto"}}>
+      <div style={{fontSize:9,letterSpacing:3,color:"#333",marginBottom:14}} className="su">PROFILS</div>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {Object.values(PROFILES).map(p=>{
           const active=activeProfile===p.id;
           return(
-            <button key={p.id} onClick={()=>onSwitch(p.id)} style={{display:"flex",alignItems:"center",gap:16,padding:"20px 18px",borderRadius:16,cursor:"pointer",border:`2px solid ${active?p.color:palette.border}`,background:active?`${p.color}20`:palette.surface,textAlign:"left",transition:"all 0.3s",transform:active?"scale(1.02)":"scale(1)"}} className="pop-in">
-              <div style={{width:54,height:54,borderRadius:"50%",background:`${p.color}33`,border:`2px solid ${p.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,flexShrink:0}}>{p.emoji}</div>
+            <button key={p.id} onClick={()=>onSwitch(p.id)} style={{
+              display:"flex",alignItems:"center",gap:14,
+              padding:"18px 16px",cursor:"pointer",textAlign:"left",
+              border:`1px solid ${active?p.color:"#1A1A1A"}`,
+              background:active?`${p.color}14`:"#111",
+              transition:"all 0.2s"
+            }} className="su">
+              {active&&<div style={{position:"absolute",height:2,width:32,background:p.color}}/>}
+              <div style={{width:48,height:48,border:`2px solid ${p.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{p.emoji}</div>
               <div style={{flex:1}}>
-                <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:active?p.color:"#FFF",letterSpacing:1}}>{p.name}</div>
-                <div style={{fontSize:12,color:"#555",marginTop:3}}>Objectif : {p.defaultGoal}kg · {LEVELS.find(l=>l.key===p.defaultLevel).label}</div>
+                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:2,color:active?p.color:"#FFF"}}>{p.name}</div>
+                <div style={{fontSize:11,color:"#444",marginTop:2}}>Objectif : {p.defaultGoal}kg · {LEVELS.find(l=>l.key===p.defaultLevel).label}</div>
               </div>
-              {active&&<div style={{width:12,height:12,borderRadius:"50%",background:p.color,boxShadow:`0 0 12px ${p.color}`,flexShrink:0}}/>}
+              {active&&<div style={{width:8,height:8,background:p.color,boxShadow:`0 0 8px ${p.color}`}}/>}
             </button>
           );
         })}
       </div>
-      <div style={{marginTop:28,padding:"16px",background:palette.surface,border:`1px solid ${palette.accent}22`,borderRadius:12}} className="fade-up">
-        <div style={{fontSize:10,letterSpacing:2,color:palette.accent,marginBottom:6}}>ℹ️ PROFILS</div>
-        <div style={{fontSize:12,color:"#666",lineHeight:1.7}}>Chaque profil a son propre historique de poids, ses préférences de niveau et de durée. Les données sont sauvegardées sur cet appareil.</div>
+      <div style={{marginTop:24,borderLeft:`3px solid ${pal.a}`,paddingLeft:12}} className="su">
+        <div style={{fontSize:9,letterSpacing:3,color:pal.a,marginBottom:4}}>INFO</div>
+        <div style={{fontSize:11,color:"#444",lineHeight:1.7}}>Chaque profil a son propre historique de poids et ses préférences. Données sauvegardées sur cet appareil.</div>
       </div>
     </div>
   );
 }
 
 // ─── BOTTOM NAV ───────────────────────────────────────────────────────────────
-function BottomNav({tab, setTab, accent, bg}){
+function Nav({tab, setTab, a, bg}){
   const items=[
-    {key:"seance",     icon:"🏋", label:"Séance"},
-    {key:"progression",icon:"📈", label:"Progression"},
-    {key:"profil",     icon:"👤", label:"Profil"},
+    {key:"seance",     label:"SÉANCE",icon:"🏋"},
+    {key:"progression",label:"POIDS", icon:"📈"},
+    {key:"profil",     label:"PROFIL",icon:"👤"},
   ];
   return(
-    <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:200,background:`${bg}F8`,borderTop:"1px solid #1A1A1A",display:"flex",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)"}}>
+    <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:200,background:`${bg}F8`,borderTop:"1px solid #1A1A1A",display:"flex",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)"}}>
       {items.map(it=>{
         const active=tab===it.key;
         return(
-          <button key={it.key} onClick={()=>setTab(it.key)} style={{flex:1,padding:"10px 4px 14px",background:"transparent",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,transition:"all 0.2s"}}>
-            <span style={{fontSize:20,filter:active?"none":"grayscale(0.6)",opacity:active?1:0.5}}>{it.icon}</span>
-            <span style={{fontSize:10,letterSpacing:1,color:active?accent:"#444",fontFamily:"'DM Sans',sans-serif",fontWeight:active?500:400}}>{it.label.toUpperCase()}</span>
-            {active&&<div style={{width:24,height:2,borderRadius:2,background:accent,marginTop:1}}/>}
+          <button key={it.key} onClick={()=>setTab(it.key)} style={{flex:1,padding:"10px 4px 14px",background:"transparent",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+            <span style={{fontSize:18,opacity:active?1:0.3}}>{it.icon}</span>
+            <span style={{fontSize:9,letterSpacing:2,color:active?a:"#333",fontFamily:"'Bebas Neue',sans-serif",fontWeight:active?700:400}}>{it.label}</span>
+            {active&&<div style={{width:20,height:2,background:a}}/>}
           </button>
         );
       })}
@@ -778,56 +777,49 @@ function BottomNav({tab, setTab, accent, bg}){
 }
 
 // ─── SECRET PANEL ─────────────────────────────────────────────────────────────
-function SecretPanel({onClose, palette, setPalette}){
+function SecretPanel({onClose, pal, setPal}){
   const [fam,setFam]=useState("Tous");
-  const filtered=fam==="Tous"?BG_PRESETS:BG_PRESETS.filter(p=>p.family===fam);
-  const select=p=>{setPalette(p);LS.set("abdfit_palette",p);};
+  const filtered=fam==="Tous"?PALETTES:PALETTES.filter(p=>p.family===fam);
+  const pick=p=>{setPal(p);LS.set("af_pal",p);};
   return(
-    <div style={{position:"fixed",inset:0,zIndex:999,display:"flex",alignItems:"flex-end",background:"#00000088"}} onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{width:"100%",background:"#111",border:"1px solid #2A2A2A",borderRadius:"20px 20px 0 0",padding:"20px 16px 36px",animation:"fadeUp 0.3s ease",maxHeight:"80vh",display:"flex",flexDirection:"column"}}>
+    <div style={{position:"fixed",inset:0,zIndex:999,display:"flex",alignItems:"flex-end",background:"#00000099"}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{width:"100%",background:"#0F0F0F",border:"1px solid #1A1A1A",borderRadius:"12px 12px 0 0",padding:"18px 14px 32px",animation:"slideUp 0.3s ease",maxHeight:"78vh",display:"flex",flexDirection:"column"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexShrink:0}}>
           <div>
-            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:3,color:palette.accent}}>🎨 APPARENCE</div>
-            <div style={{fontSize:11,color:"#555"}}>5 taps sur le logo · {BG_PRESETS.length} palettes</div>
+            <div style={{height:2,width:24,background:pal.a,marginBottom:6}}/>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:3,color:pal.a}}>APPARENCE</div>
+            <div style={{fontSize:10,color:"#333"}}>5 taps sur le logo · {PALETTES.length} palettes</div>
           </div>
-          <button onClick={onClose} style={{background:"transparent",border:"1px solid #2A2A2A",color:"#666",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:13}}>✕</button>
+          <button onClick={onClose} style={{background:"transparent",border:"1px solid #1A1A1A",color:"#444",padding:"5px 10px",cursor:"pointer",fontFamily:"'Bebas Neue',sans-serif",fontSize:13,letterSpacing:1}}>FERMER</button>
         </div>
-        <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:10,marginBottom:10,flexShrink:0}}>
-          {["Tous",...BG_FAMILIES].map(f=>(
-            <button key={f} onClick={()=>setFam(f)} style={{flexShrink:0,padding:"5px 10px",borderRadius:20,cursor:"pointer",background:fam===f?palette.accent:"transparent",border:`1px solid ${fam===f?palette.accent:"#2A2A2A"}`,color:fam===f?"#000":"#555",fontSize:10,fontWeight:700,transition:"all 0.2s"}}>{f}</button>
+        <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:10,marginBottom:10,flexShrink:0}}>
+          {["Tous",...FAM].map(f=>(
+            <button key={f} onClick={()=>setFam(f)} style={{flexShrink:0,padding:"4px 10px",cursor:"pointer",background:fam===f?pal.a:"transparent",border:`1px solid ${fam===f?pal.a:"#1A1A1A"}`,color:fam===f?"#000":"#444",fontSize:9,fontFamily:"'Bebas Neue',sans-serif",letterSpacing:1,transition:"all 0.2s"}}>{f}</button>
           ))}
         </div>
         <div style={{overflowY:"auto",flex:1}}>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
             {filtered.map(p=>{
-              const active=palette.label===p.label;
+              const active=pal.label===p.label;
               return(
-                <button key={p.label} onClick={()=>select(p)} style={{padding:"8px 4px 6px",borderRadius:10,cursor:"pointer",border:`2px solid ${active?p.accent:"#1A1A1A"}`,background:active?`${p.accent}15`:"transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:5,transition:"all 0.2s",transform:active?"scale(1.05)":"scale(1)"}}>
-                  <div style={{width:44,height:44,borderRadius:8,background:p.bg,border:`1px solid ${p.border}`,overflow:"hidden",position:"relative",boxShadow:active?`0 0 10px ${p.accent}66`:"none"}}>
-                    <div style={{position:"absolute",bottom:0,left:0,right:0,height:3,background:p.accent}}/>
-                    <div style={{padding:"5px 5px 0"}}>
-                      <div style={{height:2,width:16,background:p.accent,marginBottom:3}}/>
-                      <div style={{fontSize:9,fontWeight:900,color:p.text,fontFamily:"Arial Black",lineHeight:1}}>PUSH</div>
+                <button key={p.label} onClick={()=>pick(p)} style={{padding:"8px 4px 6px",cursor:"pointer",border:`2px solid ${active?p.a:"#1A1A1A"}`,background:"transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:4,transition:"all 0.2s"}}>
+                  <div style={{width:44,height:40,background:p.bg,border:`1px solid ${p.b}`,overflow:"hidden",position:"relative",boxShadow:active?`0 0 8px ${p.a}55`:"none"}}>
+                    <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:p.a}}/>
+                    <div style={{padding:"6px 5px 0"}}>
+                      <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:14,color:p.t||"#FFF",letterSpacing:1,lineHeight:1}}>PUSH</div>
+                      <div style={{height:1,width:"60%",background:p.a,marginTop:3}}/>
                     </div>
                   </div>
-                  <span style={{fontSize:9,color:active?p.accent:"#444",textAlign:"center",lineHeight:1.2}}>{p.label}</span>
+                  <span style={{fontSize:9,color:active?p.a:"#333",letterSpacing:0.5,fontFamily:"'DM Sans'"}}>{p.label}</span>
                 </button>
               );
             })}
           </div>
         </div>
-        {palette.label&&(
-          <div style={{marginTop:12,padding:"10px 12px",background:"#1A1A1A",borderRadius:10,border:`1px solid ${palette.accent}44`,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
-            <div style={{width:28,height:28,borderRadius:6,background:palette.bg,border:`2px solid ${palette.accent}`,flexShrink:0}}/>
-            <div style={{flex:1}}>
-              <div style={{fontSize:12,fontWeight:700,color:palette.accent}}>{palette.label}</div>
-              <div style={{fontSize:10,color:"#444"}}>{palette.family}</div>
-            </div>
-            <div style={{display:"flex",gap:4}}>
-              {[palette.bg,palette.surface,palette.accent].map((c,i)=>(
-                <div key={i} style={{width:16,height:16,borderRadius:4,background:c,border:"1px solid #333"}}/>
-              ))}
-            </div>
+        {pal.label&&(
+          <div style={{marginTop:10,padding:"8px 10px",borderLeft:`3px solid ${pal.a}`,flexShrink:0}}>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:14,letterSpacing:2,color:pal.a}}>{pal.label}</div>
+            <div style={{fontSize:9,color:"#444"}}>{pal.family}</div>
           </div>
         )}
       </div>
@@ -835,91 +827,89 @@ function SecretPanel({onClose, palette, setPalette}){
   );
 }
 
-// ─── APP ROOT ─────────────────────────────────────────────────────────────────
+// ─── APP ──────────────────────────────────────────────────────────────────────
 function App(){
-  const [activeProfile,setActiveProfile]=useState(()=>LS.get("abdfit_activeProfile","miovida"));
+  const [profile,setProfile]=useState(()=>LS.get("af_profile","miovida"));
   const [tab,setTab]=useState("seance");
   const [workout,setWorkout]=useState(null);
-  const [logoTaps,setLogoTaps]=useState(0);
-  const [showSecret,setShowSecret]=useState(false);
-  const [palette,setPalette]=useState(()=>LS.get("abdfit_palette",BG_PRESETS[0]));
-  const [showInstallBanner,setShowInstallBanner]=useState(false);
+  const [taps,setTaps]=useState(0);
+  const [secret,setSecret]=useState(false);
+  const [pal,setPal]=useState(()=>LS.get("af_pal",PALETTES[0]));
+  const [installBanner,setInstallBanner]=useState(false);
   const tapTimer=useRef();
-  const profile=PROFILE_DEFS[activeProfile];
-  const A=palette.accent;
+  const P=PROFILES[profile];
+  const A=pal.a;
 
   useEffect(()=>{
     if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
     const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
     const isStandalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone;
-    if(isIOS&&!isStandalone&&!LS.get('abdfit_installDismissed',false)) setTimeout(()=>setShowInstallBanner(true),2000);
+    if(isIOS&&!isStandalone&&!LS.get('af_install',false)) setTimeout(()=>setInstallBanner(true),2000);
   },[]);
 
-  const handleLogoTap=()=>{
-    const next=logoTaps+1; setLogoTaps(next);
-    clearTimeout(tapTimer.current);
-    if(next>=5){setShowSecret(true);setLogoTaps(0);}
-    else tapTimer.current=setTimeout(()=>setLogoTaps(0),1500);
+  const logoTap=()=>{
+    const n=taps+1; setTaps(n); clearTimeout(tapTimer.current);
+    if(n>=5){setSecret(true);setTaps(0);}
+    else tapTimer.current=setTimeout(()=>setTaps(0),1500);
   };
 
-  const switchProfile=id=>{setActiveProfile(id);LS.set("abdfit_activeProfile",id);setTab("seance");setWorkout(null);};
+  const switchProfile=id=>{setProfile(id);LS.set("af_profile",id);setTab("seance");setWorkout(null);};
 
-  if(workout){
-    return <Workout {...workout} palette={palette} onBack={()=>setWorkout(null)}/>;
-  }
+  if(workout) return <Workout {...workout} pal={pal} onBack={()=>setWorkout(null)}/>;
 
   return(
-    <div style={{minHeight:"100vh",background:`radial-gradient(ellipse at top,${palette.top||"#2A1400"} 0%,${palette.bg} 55%)`}}>
-      {/* Header */}
-      <div style={{padding:"20px 18px 14px",borderBottom:`1px solid ${palette.border}`,background:`${palette.bg}CC`,position:"sticky",top:0,zIndex:100,backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)"}}>
+    <div style={{minHeight:"100vh",background:pal.bg}}>
+      {/* HEADER — FORGE STYLE */}
+      <div style={{background:pal.bg,borderBottom:"1px solid #1A1A1A",padding:"16px 16px 12px",position:"sticky",top:0,zIndex:100}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",maxWidth:480,margin:"0 auto"}}>
-          <div onClick={handleLogoTap} style={{fontFamily:"'Playfair Display',serif",fontSize:28,fontWeight:900,lineHeight:1,cursor:"default",userSelect:"none",position:"relative"}}>
-            <span style={{color:palette.text||"#FFF"}}>Abdella</span><span style={{color:A}}>Fit</span>
-            {logoTaps>0&&logoTaps<5&&(
-              <div style={{position:"absolute",top:-6,right:-10,width:16,height:16,borderRadius:"50%",background:A,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#000",fontWeight:700,fontFamily:"sans-serif"}}>{5-logoTaps}</div>
+          {/* Logo */}
+          <div onClick={logoTap} style={{cursor:"default",userSelect:"none",position:"relative"}}>
+            <div style={{height:2,width:32,background:A,marginBottom:5}}/>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:26,letterSpacing:4,lineHeight:1,color:pal.t||"#FFF"}}>
+              ABDELLA<span style={{color:A}}>FIT</span>
+            </div>
+            {taps>0&&taps<5&&(
+              <div style={{position:"absolute",top:-4,right:-10,width:14,height:14,background:A,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,color:"#000",fontWeight:700,fontFamily:"'DM Sans'"}}>{5-taps}</div>
             )}
           </div>
-          <button onClick={()=>setTab("profil")} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 12px",borderRadius:20,background:`${profile.color}20`,border:`1px solid ${profile.color}55`,cursor:"pointer"}}>
-            <span style={{fontSize:16}}>{profile.emoji}</span>
-            <span style={{fontFamily:"'Playfair Display',serif",fontSize:14,fontWeight:700,color:profile.color}}>{profile.name}</span>
+          {/* Profile pill */}
+          <button onClick={()=>setTab("profil")} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 12px",border:`1px solid ${P.color}44`,background:`${P.color}14`,cursor:"pointer"}}>
+            <span style={{fontSize:14}}>{P.emoji}</span>
+            <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:14,letterSpacing:2,color:P.color}}>{P.name.toUpperCase()}</span>
           </button>
         </div>
       </div>
 
-      {/* Content */}
+      {/* CONTENT */}
       <div style={{paddingTop:8}}>
-        {tab==="seance"&&<SessionConfig profileId={activeProfile} palette={palette} onStart={(s,l,d)=>setWorkout({session:s,level:l,duration:d})}/>}
+        {tab==="seance"&&<SessionConfig profileId={profile} pal={pal} onStart={(s,l,d)=>setWorkout({session:s,level:l,duration:d})}/>}
         {tab==="progression"&&(
-          <div style={{padding:"16px 0 0"}}>
-            <div style={{padding:"0 18px 14px",display:"flex",alignItems:"center",gap:10,maxWidth:480,margin:"0 auto"}}>
-              <span style={{fontSize:22}}>{profile.emoji}</span>
-              <div>
-                <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,color:profile.color}}>{profile.name}</div>
-                <div style={{fontSize:11,color:"#555"}}>Suivi du poids</div>
-              </div>
+          <div style={{paddingTop:16}}>
+            <div style={{padding:"0 16px 14px",maxWidth:480,margin:"0 auto"}}>
+              <div style={{height:2,width:24,background:P.color,marginBottom:5}}/>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:2,color:P.color}}>{P.name.toUpperCase()}</div>
+              <div style={{fontSize:10,color:"#444",letterSpacing:1}}>SUIVI DU POIDS</div>
             </div>
-            <Progression profileId={activeProfile} palette={palette}/>
+            <Progression profileId={profile} pal={pal}/>
           </div>
         )}
-        {tab==="profil"&&<ProfilScreen activeProfile={activeProfile} onSwitch={switchProfile} palette={palette}/>}
+        {tab==="profil"&&<ProfilScreen activeProfile={profile} onSwitch={switchProfile} pal={pal}/>}
       </div>
 
-      <BottomNav tab={tab} setTab={setTab} accent={A} bg={palette.bg}/>
+      <Nav tab={tab} setTab={setTab} a={A} bg={pal.bg}/>
 
       {/* iOS install banner */}
-      {showInstallBanner&&(
-        <div style={{position:"fixed",bottom:72,left:16,right:16,zIndex:300,background:"#1A1A1A",border:`1px solid ${A}55`,borderRadius:16,padding:"16px",boxShadow:"0 8px 32px #00000088"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,letterSpacing:2,color:A}}>📲 INSTALLER L'APP</div>
-            <button onClick={()=>{setShowInstallBanner(false);LS.set('abdfit_installDismissed',true);}} style={{background:"transparent",border:"none",color:"#555",cursor:"pointer",fontSize:18}}>×</button>
+      {installBanner&&(
+        <div style={{position:"fixed",bottom:70,left:12,right:12,zIndex:300,background:"#111",border:`1px solid ${A}44`,padding:"14px",boxShadow:"0 4px 24px #00000088"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:14,letterSpacing:2,color:A}}>📲 INSTALLER L'APP</div>
+            <button onClick={()=>{setInstallBanner(false);LS.set('af_install',true);}} style={{background:"transparent",border:"none",color:"#444",cursor:"pointer",fontSize:16}}>×</button>
           </div>
-          <div style={{fontSize:12,color:"#666",lineHeight:1.7}}>
-            Tap <strong style={{color:"#FFF"}}>Partager</strong> → <strong style={{color:"#FFF"}}>"Sur l'écran d'accueil"</strong>
-          </div>
+          <div style={{fontSize:11,color:"#555",lineHeight:1.6}}>Tap <strong style={{color:"#FFF"}}>Partager ⬆</strong> → <strong style={{color:"#FFF"}}>"Sur l'écran d'accueil"</strong></div>
         </div>
       )}
 
-      {showSecret&&<SecretPanel onClose={()=>setShowSecret(false)} palette={palette} setPalette={setPalette}/>}
+      {secret&&<SecretPanel onClose={()=>setSecret(false)} pal={pal} setPal={p=>{setPal(p);LS.set("af_pal",p);}}/>}
     </div>
   );
 }
