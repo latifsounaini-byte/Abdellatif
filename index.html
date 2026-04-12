@@ -300,6 +300,76 @@ const LEVELS = [
 ];
 const DURATIONS = [45,60,90,120];
 
+// ─── AUDIO ENGINE ────────────────────────────────────────────────────────────
+// Keeps iOS JS alive in background via silent audio loop + plays beep on done
+const AudioEngine = (()=>{
+  let ctx = null;
+  let silentSource = null;
+  let keepAliveInterval = null;
+
+  function getCtx(){
+    if(!ctx) ctx = new (window.AudioContext||window.webkitAudioContext)();
+    return ctx;
+  }
+
+  // Play a silent buffer on repeat — tricks iOS into keeping JS alive
+  function startKeepAlive(){
+    try{
+      const ac = getCtx();
+      if(ac.state === 'suspended') ac.resume();
+
+      // Create a tiny silent buffer and loop it
+      const buf = ac.createBuffer(1, ac.sampleRate * 0.5, ac.sampleRate);
+      const src = ac.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      src.connect(ac.destination);
+      src.start();
+      silentSource = src;
+
+      // Also ping every 20s to prevent suspension
+      keepAliveInterval = setInterval(()=>{
+        if(ac.state === 'suspended') ac.resume();
+      }, 20000);
+    }catch(e){}
+  }
+
+  function stopKeepAlive(){
+    try{
+      if(silentSource){ silentSource.stop(); silentSource = null; }
+      clearInterval(keepAliveInterval);
+    }catch(e){}
+  }
+
+  // Short beep: frequency, duration in ms
+  function beep(freq=880, dur=300, vol=0.4){
+    try{
+      const ac = getCtx();
+      if(ac.state==='suspended') ac.resume();
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.connect(gain); gain.connect(ac.destination);
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(vol, ac.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur/1000);
+      osc.start(); osc.stop(ac.currentTime + dur/1000);
+    }catch(e){}
+  }
+
+  // Triple beep = "rest over, go!"
+  function restDoneSound(){
+    beep(660, 150, 0.3);
+    setTimeout(()=>beep(880, 150, 0.3), 180);
+    setTimeout(()=>beep(1100, 300, 0.5), 360);
+  }
+
+  // countdown beep for last 3 seconds
+  function countdownBeep(){ beep(440, 100, 0.2); }
+
+  return { startKeepAlive, stopKeepAlive, restDoneSound, countdownBeep, getCtx };
+})();
+
 // ─── NOTIFICATION HELPER ─────────────────────────────────────────────────────
 function fireNotif(title, body){
   if(!('Notification' in window)||Notification.permission!=='granted') return;
@@ -313,50 +383,66 @@ function fireNotif(title, body){
 }
 
 // ─── REST TIMER ──────────────────────────────────────────────────────────────
-// Uses absolute end-timestamp so background/lock-screen doesn't break it
 function RestTimer({seconds, onDone, exerciseName}){
   const endRef = useRef(Date.now() + seconds * 1000);
   const [left, setLeft] = useState(seconds);
   const tickRef = useRef();
+  const beepedRef = useRef(new Set()); // track which countdown seconds already beeped
 
   const tick = useCallback(()=>{
     const rem = Math.max(0, Math.ceil((endRef.current - Date.now()) / 1000));
     setLeft(rem);
+
+    // Countdown beeps for last 3 seconds
+    if(rem <= 3 && rem > 0 && !beepedRef.current.has(rem)){
+      beepedRef.current.add(rem);
+      AudioEngine.countdownBeep();
+    }
+
     if(rem <= 0){
+      AudioEngine.restDoneSound();
+      fireNotif('⏱️ Repos terminé !', exerciseName ? `C'est reparti sur : ${exerciseName} 💪` : 'C\'est reparti !');
       onDone();
-      fireNotif('⏱️ Repos terminé !', exerciseName ? `Prêt pour : ${exerciseName} 💪` : 'C\'est reparti !');
       return;
     }
-    tickRef.current = setTimeout(tick, 300);
+    tickRef.current = setTimeout(tick, 250);
   },[onDone, exerciseName]);
 
   useEffect(()=>{
+    // Unlock audio on mount (iOS requires user gesture — timer start IS the gesture)
+    AudioEngine.getCtx();
+    // Start silent keep-alive so iOS doesn't pause JS
+    AudioEngine.startKeepAlive();
     tickRef.current = setTimeout(tick, 100);
-    // Recalculate immediately when screen unlocks / app comes back
     const onVis = ()=>{ if(!document.hidden){ clearTimeout(tickRef.current); tick(); }};
     document.addEventListener('visibilitychange', onVis);
-    return()=>{ clearTimeout(tickRef.current); document.removeEventListener('visibilitychange', onVis); };
+    return()=>{
+      clearTimeout(tickRef.current);
+      document.removeEventListener('visibilitychange', onVis);
+      AudioEngine.stopKeepAlive();
+    };
   },[tick]);
 
   const pct=(seconds-left)/seconds, r=22, circ=2*Math.PI*r;
+  const isLast3 = left <= 3 && left > 0;
   return(
-    <div style={{display:"flex",alignItems:"center",gap:14,background:`linear-gradient(135deg,#2A1508,#1C0F05)`,border:`1px solid ${C.orange}44`,borderRadius:12,padding:"10px 16px",marginTop:10}}>
+    <div style={{display:"flex",alignItems:"center",gap:14,background:`linear-gradient(135deg,#2A1508,#1C0F05)`,border:`1px solid ${isLast3?C.terra:C.orange}88`,borderRadius:12,padding:"10px 16px",marginTop:10,transition:"border-color 0.3s"}}>
       <svg width={54} height={54} viewBox="0 0 54 54">
         <circle cx={27} cy={27} r={r} fill="none" stroke={C.border} strokeWidth={4}/>
-        <circle cx={27} cy={27} r={r} fill="none" stroke={C.orange} strokeWidth={4} strokeDasharray={String(circ)} strokeDashoffset={String(circ*(1-pct))} transform="rotate(-90 27 27)" style={{transition:"stroke-dashoffset 0.3s linear"}}/>
-        <text x={27} y={32} textAnchor="middle" style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,fill:C.cream}}>{left}</text>
+        <circle cx={27} cy={27} r={r} fill="none" stroke={isLast3?C.terra:C.orange} strokeWidth={4} strokeDasharray={String(circ)} strokeDashoffset={String(circ*(1-pct))} transform="rotate(-90 27 27)" style={{transition:"stroke-dashoffset 0.25s linear"}}/>
+        <text x={27} y={32} textAnchor="middle" style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,fill:isLast3?C.terra:C.cream}}>{left}</text>
       </svg>
       <div>
         <div style={{fontSize:11,color:C.muted,letterSpacing:1}}>RÉCUPÉRATION</div>
-        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,color:C.orange,letterSpacing:2}}>{left}s</div>
+        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,color:isLast3?C.terra:C.orange,letterSpacing:2}}>{left}s</div>
       </div>
-      <button onClick={onDone} style={{marginLeft:"auto",background:"transparent",border:`1px solid ${C.borderHi}`,color:C.muted,borderRadius:8,padding:"4px 12px",cursor:"pointer",fontSize:12}}>Skip</button>
+      <button onClick={()=>{AudioEngine.stopKeepAlive();onDone();}} style={{marginLeft:"auto",background:"transparent",border:`1px solid ${C.borderHi}`,color:C.muted,borderRadius:8,padding:"4px 12px",cursor:"pointer",fontSize:12}}>Skip</button>
     </div>
   );
 }
 
 // ─── EXERCISE CARD ───────────────────────────────────────────────────────────
-function ExerciseCard({ex,color}){
+function ExerciseCard({ex,color,musicMode}){
   const [done,setDone]=useState(new Array(ex.sets).fill(false));
   const [timer,setTimer]=useState(null);
   const toggle=i=>{const next=[...done];next[i]=!next[i];setDone(next);if(next[i]&&ex.rest>0)setTimer(ex.rest);};
@@ -377,7 +463,7 @@ function ExerciseCard({ex,color}){
         </div>
       )}
       {ex.isSimple&&(<button onClick={()=>toggle(0)} style={{marginTop:10,padding:"7px 18px",borderRadius:10,border:`1px solid ${done[0]?color:C.borderHi}`,background:done[0]?`${color}22`:C.surface,color:done[0]?color:C.muted,cursor:"pointer",fontSize:12,transition:"all 0.2s"}}>{done[0]?"✓ Complété":"Marquer comme fait"}</button>)}
-      {timer&&<RestTimer seconds={timer} exerciseName={ex.name} onDone={()=>setTimer(null)}/>}
+      {timer&&<RestTimer seconds={timer} exerciseName={ex.name} musicMode={musicMode} onDone={()=>setTimer(null)}/>}
     </div>
   );
 }
@@ -545,21 +631,49 @@ function Progression({profileId}){
 function Workout({session,level,duration,color,onBack}){
   const [elapsed,setElapsed]=useState(0);
   const [running,setRunning]=useState(false);
-  const startRef=useRef(null);   // absolute timestamp of when running started
-  const savedRef=useRef(0);      // elapsed saved at last pause
+  const [musicMode,setMusicMode]=useState(()=>LS.get('abdfit_musicMode',false));
+  const startRef=useRef(null);
+  const savedRef=useRef(0);
   const intervalRef=useRef();
+  const wakeLockRef=useRef(null);
   const sess=SESSIONS[session];
+
+  const toggleMusicMode=()=>{
+    const next=!musicMode;
+    setMusicMode(next);
+    LS.set('abdfit_musicMode',next);
+    if(next) AudioEngine.stopKeepAlive(); // stop audio if switching to music mode
+  };
+
+  // Request Wake Lock — keeps screen on so JS keeps running
+  const requestWakeLock = async()=>{
+    try{
+      if('wakeLock' in navigator){
+        wakeLockRef.current = await navigator.wakeLock.request('screen');
+      }
+    }catch(e){}
+  };
+  const releaseWakeLock = ()=>{
+    try{ if(wakeLockRef.current){ wakeLockRef.current.release(); wakeLockRef.current=null; } }catch(e){}
+  };
+  // Re-acquire after screen unlocks (iOS releases it on lock)
+  useEffect(()=>{
+    const onVis=()=>{ if(!document.hidden && running) requestWakeLock(); };
+    document.addEventListener('visibilitychange', onVis);
+    return()=>{ document.removeEventListener('visibilitychange', onVis); releaseWakeLock(); };
+  },[running]);
 
   const toggleRunning=()=>{
     setRunning(p=>{
       const next=!p;
       if(next){
-        // resuming: anchor start so current savedRef elapsed is preserved
         startRef.current=Date.now()-savedRef.current*1000;
+        requestWakeLock();
+        AudioEngine.getCtx(); // unlock audio context on user gesture
       } else {
-        // pausing: save current elapsed
         savedRef.current=elapsed;
         clearInterval(intervalRef.current);
+        releaseWakeLock();
       }
       return next;
     });
@@ -593,7 +707,10 @@ function Workout({session,level,duration,color,onBack}){
           </div>
           <div style={{textAlign:"right"}}>
             <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:19,letterSpacing:2,color:running?sess.color:C.dim}}>{fmt(elapsed)}</div>
-            <button onClick={toggleRunning} style={{fontSize:10,padding:"2px 10px",borderRadius:6,border:`1px solid ${running?sess.color+"55":C.border}`,background:running?`${sess.color}18`:"transparent",color:running?sess.color:C.dim,cursor:"pointer"}}>{running?"⏸":"▶ Start"}</button>
+            <div style={{display:"flex",gap:6,justifyContent:"flex-end",marginTop:2}}>
+              <button onClick={toggleMusicMode} style={{fontSize:10,padding:"2px 8px",borderRadius:6,border:`1px solid ${musicMode?"#1DB954":"#333"}`,background:musicMode?"#1DB95422":"transparent",color:musicMode?"#1DB954":C.dim,cursor:"pointer"}} title="Mode musique">🎵</button>
+              <button onClick={toggleRunning} style={{fontSize:10,padding:"2px 10px",borderRadius:6,border:`1px solid ${running?sess.color+"55":C.border}`,background:running?`${sess.color}18`:"transparent",color:running?sess.color:C.dim,cursor:"pointer"}}>{running?"⏸":"▶ Start"}</button>
+            </div>
           </div>
         </div>
       </div>
@@ -607,7 +724,7 @@ function Workout({session,level,duration,color,onBack}){
                 <div style={{fontSize:11,color:C.dim}}>{phase.duration}</div>
               </div>
             </div>
-            {phase.exercises.map((ex,ei)=>(<ExerciseCard key={`${pi}-${ei}`} ex={ex} color={sess.color}/>))}
+            {phase.exercises.map((ex,ei)=>(<ExerciseCard key={`${pi}-${ei}`} ex={ex} color={sess.color} musicMode={musicMode}/>))}
           </div>
         ))}
         <div style={{padding:"14px 16px",background:`linear-gradient(135deg,#2A1A08,#1C1005)`,borderRadius:12,border:`1px solid ${C.border}`,borderLeft:`3px solid ${C.gold}`}}>
@@ -736,52 +853,130 @@ function BottomNav({tab,setTab,profileColor}){
   );
 }
 
-// ─── SECRET BG PANEL ─────────────────────────────────────────────────────────
+// ─── 36 PALETTES ─────────────────────────────────────────────────────────────
 const BG_PRESETS = [
-  {label:"Nuit",    bg:"#0E0800", top:"#3A1800"},
-  {label:"Charbon", bg:"#111111", top:"#2A2A2A"},
-  {label:"Café",    bg:"#1A1005", top:"#4A2800"},
-  {label:"Forêt",   bg:"#071410", top:"#0D3020"},
-  {label:"Marine",  bg:"#070B14", top:"#0D1E3A"},
-  {label:"Aubergine",bg:"#0E0812",top:"#2A1040"},
-  {label:"Cacao",   bg:"#140A08", top:"#3A1C14"},
-  {label:"Ivoire",  bg:"#F5EDD8", top:"#E8C880"},
+  // 🔥 Feu
+  {family:"🔥 Feu",      label:"Braise",     bg:"#0A0A0A",surface:"#141414",border:"#2A2A2A",accent:"#FF5500",text:"#FFFFFF",  muted:"#555555",top:"#2A1400"},
+  {family:"🔥 Feu",      label:"Forge",      bg:"#0A0A0A",surface:"#141414",border:"#2A2A2A",accent:"#FF7A00",text:"#FFFFFF",  muted:"#555555",top:"#2A1A00"},
+  {family:"🔥 Feu",      label:"Soleil",     bg:"#0A0A0A",surface:"#141414",border:"#2A2A2A",accent:"#FF9900",text:"#FFFFFF",  muted:"#555555",top:"#2A2000"},
+  {family:"🔥 Feu",      label:"Mandarine",  bg:"#0A0A0A",surface:"#141414",border:"#2A2A2A",accent:"#FF6020",text:"#FFFFFF",  muted:"#555555",top:"#2A1800"},
+  // 🌋 Volcan
+  {family:"🌋 Volcan",   label:"Lave",       bg:"#0D0808",surface:"#181010",border:"#301818",accent:"#E03000",text:"#FFEEEE",  muted:"#804040",top:"#3A1010"},
+  {family:"🌋 Volcan",   label:"Brûlure",    bg:"#0D0808",surface:"#181010",border:"#301818",accent:"#CC2020",text:"#FFEEEE",  muted:"#804040",top:"#380C0C"},
+  {family:"🌋 Volcan",   label:"Rubis",      bg:"#0D0808",surface:"#181010",border:"#301818",accent:"#E0204A",text:"#FFEEEE",  muted:"#804040",top:"#380C18"},
+  {family:"🌋 Volcan",   label:"Grenat",     bg:"#0D0808",surface:"#181010",border:"#301818",accent:"#C0184A",text:"#FFEEEE",  muted:"#804040",top:"#340C18"},
+  // 🌕 Ambre
+  {family:"🌕 Ambre",    label:"Or",         bg:"#080600",surface:"#141000",border:"#2A2000",accent:"#E8A000",text:"#FFF8E0",  muted:"#806020",top:"#2A1E00"},
+  {family:"🌕 Ambre",    label:"Miel",       bg:"#080600",surface:"#141000",border:"#2A2000",accent:"#D48020",text:"#FFF8E0",  muted:"#806020",top:"#281A00"},
+  {family:"🌕 Ambre",    label:"Bronze",     bg:"#080600",surface:"#141000",border:"#2A2000",accent:"#C07030",text:"#FFF8E0",  muted:"#806020",top:"#241600"},
+  {family:"🌕 Ambre",    label:"Cuivre",     bg:"#080600",surface:"#141000",border:"#2A2000",accent:"#E87030",text:"#FFF8E0",  muted:"#806020",top:"#2A1800"},
+  // 🟤 Terre
+  {family:"🟤 Terre",    label:"Terracotta", bg:"#0C0704",surface:"#1A1008",border:"#3A2010",accent:"#D46040",text:"#FFF0DC",  muted:"#8A5A30",top:"#3A1A08"},
+  {family:"🟤 Terre",    label:"Argile",     bg:"#0C0704",surface:"#1A1008",border:"#3A2010",accent:"#C05030",text:"#FFF0DC",  muted:"#8A5A30",top:"#341608"},
+  {family:"🟤 Terre",    label:"Sienne",     bg:"#0C0704",surface:"#1A1008",border:"#3A2010",accent:"#A04020",text:"#FFF0DC",  muted:"#8A5A30",top:"#2C1006"},
+  {family:"🟤 Terre",    label:"Ocre",       bg:"#0C0704",surface:"#1A1008",border:"#3A2010",accent:"#C88030",text:"#FFF0DC",  muted:"#8A5A30",top:"#381C08"},
+  // 🌅 Coucher
+  {family:"🌅 Coucher",  label:"Dusk",       bg:"#08060E",surface:"#12101C",border:"#28204A",accent:"#FF6040",text:"#FFF0F8",  muted:"#7A4060",top:"#281030"},
+  {family:"🌅 Coucher",  label:"Crépuscule", bg:"#08060E",surface:"#12101C",border:"#28204A",accent:"#FF4080",text:"#FFF0F8",  muted:"#7A4060",top:"#280C28"},
+  {family:"🌅 Coucher",  label:"Aurore",     bg:"#08060E",surface:"#12101C",border:"#28204A",accent:"#FF8040",text:"#FFF0F8",  muted:"#7A4060",top:"#2A1020"},
+  {family:"🌅 Coucher",  label:"Solstice",   bg:"#08060E",surface:"#12101C",border:"#28204A",accent:"#E06060",text:"#FFF0F8",  muted:"#7A4060",top:"#281018"},
+  // 🪖 Militaire
+  {family:"🪖 Militaire",label:"Kaki",       bg:"#060A06",surface:"#101810",border:"#203020",accent:"#80C040",text:"#F0FFE0",  muted:"#507030",top:"#102010"},
+  {family:"🪖 Militaire",label:"Jungle",     bg:"#060A06",surface:"#101810",border:"#203020",accent:"#40A060",text:"#F0FFE0",  muted:"#507030",top:"#0C1C10"},
+  {family:"🪖 Militaire",label:"Olive",      bg:"#060A06",surface:"#101810",border:"#203020",accent:"#A0A020",text:"#F0FFE0",  muted:"#607030",top:"#141A08"},
+  {family:"🪖 Militaire",label:"Camo",       bg:"#060A06",surface:"#101810",border:"#203020",accent:"#60C080",text:"#F0FFE0",  muted:"#507030",top:"#0C1E14"},
+  // 🔵 Acier
+  {family:"🔵 Acier",    label:"Cobalt",     bg:"#060810",surface:"#10141E",border:"#20304A",accent:"#4080FF",text:"#E8F0FF",  muted:"#406090",top:"#0C1430"},
+  {family:"🔵 Acier",    label:"Acier",      bg:"#060810",surface:"#10141E",border:"#20304A",accent:"#60A0E0",text:"#E8F0FF",  muted:"#406090",top:"#0C1A34"},
+  {family:"🔵 Acier",    label:"Glace",      bg:"#060810",surface:"#10141E",border:"#20304A",accent:"#40C0E0",text:"#E8F0FF",  muted:"#406090",top:"#0A1C38"},
+  {family:"🔵 Acier",    label:"Minuit",     bg:"#060810",surface:"#10141E",border:"#20304A",accent:"#8080FF",text:"#E8F0FF",  muted:"#406090",top:"#0C1030"},
+  // 💜 Nuit
+  {family:"💜 Nuit",     label:"Améthyste",  bg:"#08060E",surface:"#12101C",border:"#28204A",accent:"#A060FF",text:"#F0E8FF",  muted:"#605090",top:"#180C30"},
+  {family:"💜 Nuit",     label:"Mauve",      bg:"#08060E",surface:"#12101C",border:"#28204A",accent:"#C060C0",text:"#F0E8FF",  muted:"#705070",top:"#1C0C28"},
+  {family:"💜 Nuit",     label:"Nuit",       bg:"#08060E",surface:"#12101C",border:"#28204A",accent:"#6040C0",text:"#F0E8FF",  muted:"#504080",top:"#120A28"},
+  {family:"💜 Nuit",     label:"Nebula",     bg:"#08060E",surface:"#12101C",border:"#28204A",accent:"#E040A0",text:"#F0E8FF",  muted:"#705070",top:"#1C0820"},
+  // ⚙️ Titane
+  {family:"⚙️ Titane",  label:"Titane",     bg:"#0E0E0E",surface:"#1A1A1A",border:"#303030",accent:"#FF7A00",text:"#F0F0F0",  muted:"#606060",top:"#282008"},
+  {family:"⚙️ Titane",  label:"Argent",     bg:"#0E0E0E",surface:"#1A1A1A",border:"#303030",accent:"#C0C0C0",text:"#F0F0F0",  muted:"#606060",top:"#202020"},
+  {family:"⚙️ Titane",  label:"Chrome",     bg:"#0E0E0E",surface:"#1A1A1A",border:"#303030",accent:"#80D0E0",text:"#F0F0F0",  muted:"#606060",top:"#101C20"},
+  {family:"⚙️ Titane",  label:"Tungsten",   bg:"#0E0E0E",surface:"#1A1A1A",border:"#303030",accent:"#E0A020",text:"#F0F0F0",  muted:"#606060",top:"#201A00"},
 ];
+const BG_FAMILIES = [...new Set(BG_PRESETS.map(p=>p.family))];
 
 function SecretPanel({onClose, bgConfig, setBgConfig}){
+  const [fam, setFam] = useState("Tous");
+  const filtered = fam==="Tous" ? BG_PRESETS : BG_PRESETS.filter(p=>p.family===fam);
+  const select = p => { setBgConfig(p); LS.set("abdfit_bgconfig",p); };
+
   return(
     <div style={{position:"fixed",inset:0,zIndex:999,display:"flex",alignItems:"flex-end",background:"#00000088"}} onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{width:"100%",background:`linear-gradient(180deg,#2A1400,#1A0C00)`,border:`1px solid ${C.borderHi}`,borderRadius:"20px 20px 0 0",padding:"24px 20px 40px",animation:"fadeUp 0.3s ease"}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:"100%",background:"#141008",border:`1px solid ${C.borderHi}`,borderRadius:"20px 20px 0 0",padding:"20px 16px 36px",animation:"fadeUp 0.3s ease",maxHeight:"80vh",display:"flex",flexDirection:"column"}}>
+
+        {/* Header */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexShrink:0}}>
           <div>
             <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,letterSpacing:3,color:C.orange}}>🎨 APPARENCE</div>
-            <div style={{fontSize:11,color:C.dim,marginTop:2}}>Paramètre secret · 5 taps sur le logo</div>
+            <div style={{fontSize:11,color:C.dim}}>5 taps sur le logo · {BG_PRESETS.length} palettes</div>
           </div>
           <button onClick={onClose} style={{background:"transparent",border:`1px solid ${C.border}`,color:C.muted,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:13}}>✕</button>
         </div>
-        <div style={{fontSize:10,letterSpacing:2,color:C.muted,marginBottom:12}}>COULEUR DE FOND</div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
-          {BG_PRESETS.map(p=>{
-            const active=bgConfig.bg===p.bg;
-            return(
-              <button key={p.label} onClick={()=>{setBgConfig(p);LS.set("abdfit_bgconfig",p);}} style={{padding:"10px 4px",borderRadius:10,cursor:"pointer",border:`2px solid ${active?C.orange:C.border}`,background:"transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:6,transition:"all 0.2s"}}>
-                <div style={{width:36,height:36,borderRadius:8,background:`radial-gradient(ellipse at top,${p.top},${p.bg})`,border:`1px solid #ffffff18`,boxShadow:active?`0 0 10px ${C.orange}88`:"none"}}/>
-                <span style={{fontSize:10,color:active?C.orange:C.dim,letterSpacing:0.5}}>{p.label}</span>
-              </button>
-            );
-          })}
+
+        {/* Family filter — scrollable */}
+        <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:10,marginBottom:10,flexShrink:0}}>
+          {["Tous",...BG_FAMILIES].map(f=>(
+            <button key={f} onClick={()=>setFam(f)} style={{
+              flexShrink:0,padding:"5px 10px",borderRadius:20,cursor:"pointer",
+              background:fam===f?C.orange:"transparent",
+              border:`1px solid ${fam===f?C.orange:C.border}`,
+              color:fam===f?"#0A0A0A":C.muted,
+              fontSize:10,fontWeight:700,letterSpacing:0.5,transition:"all 0.2s"
+            }}>{f}</button>
+          ))}
         </div>
-        <div style={{marginTop:20}}>
-          <div style={{fontSize:10,letterSpacing:2,color:C.muted,marginBottom:10}}>PERSONNALISÉ</div>
-          <div style={{display:"flex",gap:10,alignItems:"center"}}>
-            <input type="color" value={bgConfig.bg} onChange={e=>{const nc={...bgConfig,bg:e.target.value};setBgConfig(nc);LS.set("abdfit_bgconfig",nc);}}
-              style={{width:48,height:48,borderRadius:10,border:`1px solid ${C.border}`,background:"transparent",cursor:"pointer",padding:2}}/>
-            <div style={{flex:1}}>
-              <div style={{fontSize:12,color:C.muted}}>Fond : <span style={{color:C.cream,fontFamily:"monospace"}}>{bgConfig.bg}</span></div>
-              <div style={{fontSize:11,color:C.dim,marginTop:2}}>Cliquer sur le carré pour choisir librement</div>
-            </div>
+
+        {/* Palette grid — scrollable */}
+        <div style={{overflowY:"auto",flex:1}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+            {filtered.map(p=>{
+              const active = bgConfig.label===p.label;
+              return(
+                <button key={p.label} onClick={()=>select(p)} style={{
+                  padding:"8px 4px 6px",borderRadius:10,cursor:"pointer",
+                  border:`2px solid ${active?p.accent:C.border}`,
+                  background:active?`${p.accent}15`:"transparent",
+                  display:"flex",flexDirection:"column",alignItems:"center",gap:5,
+                  transition:"all 0.2s",transform:active?"scale(1.05)":"scale(1)"
+                }}>
+                  {/* Swatch with mini forge preview */}
+                  <div style={{width:44,height:44,borderRadius:8,background:p.bg,border:`1px solid ${p.border}`,overflow:"hidden",position:"relative",boxShadow:active?`0 0 10px ${p.accent}66`:"none"}}>
+                    <div style={{position:"absolute",bottom:0,left:0,right:0,height:3,background:p.accent}}/>
+                    <div style={{padding:"5px 5px 0"}}>
+                      <div style={{height:2,width:16,background:p.accent,marginBottom:3}}/>
+                      <div style={{fontSize:9,fontWeight:900,color:p.text,fontFamily:"Arial Black",lineHeight:1}}>PUSH</div>
+                    </div>
+                  </div>
+                  <span style={{fontSize:9,color:active?p.accent:C.dim,letterSpacing:0.5,textAlign:"center",lineHeight:1.2}}>{p.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
+
+        {/* Current selection */}
+        {bgConfig.label && (
+          <div style={{marginTop:12,padding:"10px 12px",background:C.surface,borderRadius:10,border:`1px solid ${bgConfig.accent}44`,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+            <div style={{width:28,height:28,borderRadius:6,background:bgConfig.bg,border:`2px solid ${bgConfig.accent}`,flexShrink:0}}/>
+            <div style={{flex:1}}>
+              <div style={{fontSize:12,fontWeight:700,color:bgConfig.accent}}>{bgConfig.label}</div>
+              <div style={{fontSize:10,color:C.dim}}>{bgConfig.family}</div>
+            </div>
+            <div style={{display:"flex",gap:4}}>
+              {[bgConfig.bg,bgConfig.surface,bgConfig.accent].map((c,i)=>(
+                <div key={i} style={{width:16,height:16,borderRadius:4,background:c,border:"1px solid #333"}}/>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
