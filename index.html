@@ -2,299 +2,477 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
 <title>AbdellaFit</title>
 <link rel="manifest" href="/manifest.json"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="AbdellaFit"/>
 <meta name="theme-color" content="#FF6B00"/>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-  html,body{height:100%;}
-  body{background:#0A0A0A;color:#FFFFFF;font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;}
-  ::-webkit-scrollbar{width:3px;}
-  ::-webkit-scrollbar-track{background:#111;}
-  ::-webkit-scrollbar-thumb{background:#333;border-radius:2px;}
-  @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-  .su{animation:slideUp 0.3s ease both;}
-  input[type=number]{-moz-appearance:textfield;}
-  input[type=number]::-webkit-outer-spin-button,
-  input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;-webkit-font-smoothing:antialiased;}
+body{font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;}
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.15);border-radius:2px;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes popIn{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}
+.fu{animation:fadeUp 0.3s ease both;}
+.pi{animation:popIn 0.25s ease both;}
+input:focus,button:focus{outline:none;}
+input[type=number]{-moz-appearance:textfield;}
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect, useRef, useMemo, useCallback } = React;
+const {useState,useEffect,useRef,useMemo,useCallback}=React;
 
-const LS = {
-  get:(k,fb)=>{ try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;} },
-  set:(k,v)=>{ try{localStorage.setItem(k,JSON.stringify(v));}catch{} },
+// ─── Storage ──────────────────────────────────────────────────────────────────
+const LS={
+  get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}},
+  set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}},
 };
 
-// ─── 36 PALETTES ─────────────────────────────────────────────────────────────
-const PALETTES = [
-  {family:"🔥 Feu",      label:"Braise",     bg:"#0A0A0A",s:"#141414",b:"#222",a:"#FF5500",t:"#FFF"},
-  {family:"🔥 Feu",      label:"Forge",      bg:"#0A0A0A",s:"#141414",b:"#222",a:"#FF7A00",t:"#FFF"},
-  {family:"🔥 Feu",      label:"Soleil",     bg:"#0A0A0A",s:"#141414",b:"#222",a:"#FF9900",t:"#FFF"},
-  {family:"🔥 Feu",      label:"Mandarine",  bg:"#0A0A0A",s:"#141414",b:"#222",a:"#FF6020",t:"#FFF"},
-  {family:"🌋 Volcan",   label:"Lave",       bg:"#0D0808",s:"#181010",b:"#2A1414",a:"#E03000",t:"#FFE8E8"},
-  {family:"🌋 Volcan",   label:"Brûlure",    bg:"#0D0808",s:"#181010",b:"#2A1414",a:"#CC2020",t:"#FFE8E8"},
-  {family:"🌋 Volcan",   label:"Rubis",      bg:"#0D0808",s:"#181010",b:"#2A1414",a:"#E0204A",t:"#FFE8E8"},
-  {family:"🌋 Volcan",   label:"Grenat",     bg:"#0D0808",s:"#181010",b:"#2A1414",a:"#C0184A",t:"#FFE8E8"},
-  {family:"🌕 Ambre",    label:"Or",         bg:"#080600",s:"#141000",b:"#282000",a:"#E8A000",t:"#FFF8E0"},
-  {family:"🌕 Ambre",    label:"Miel",       bg:"#080600",s:"#141000",b:"#282000",a:"#D48020",t:"#FFF8E0"},
-  {family:"🌕 Ambre",    label:"Bronze",     bg:"#080600",s:"#141000",b:"#282000",a:"#C07030",t:"#FFF8E0"},
-  {family:"🌕 Ambre",    label:"Cuivre",     bg:"#080600",s:"#141000",b:"#282000",a:"#E87030",t:"#FFF8E0"},
-  {family:"🟤 Terre",    label:"Terracotta", bg:"#0C0704",s:"#1A1008",b:"#301808",a:"#D46040",t:"#FFF0DC"},
-  {family:"🟤 Terre",    label:"Argile",     bg:"#0C0704",s:"#1A1008",b:"#301808",a:"#C05030",t:"#FFF0DC"},
-  {family:"🟤 Terre",    label:"Sienne",     bg:"#0C0704",s:"#1A1008",b:"#301808",a:"#A04020",t:"#FFF0DC"},
-  {family:"🟤 Terre",    label:"Ocre",       bg:"#0C0704",s:"#1A1008",b:"#301808",a:"#C88030",t:"#FFF0DC"},
-  {family:"🌅 Coucher",  label:"Dusk",       bg:"#08060E",s:"#12101C",b:"#241840",a:"#FF6040",t:"#FFF0F8"},
-  {family:"🌅 Coucher",  label:"Crépuscule", bg:"#08060E",s:"#12101C",b:"#241840",a:"#FF4080",t:"#FFF0F8"},
-  {family:"🌅 Coucher",  label:"Aurore",     bg:"#08060E",s:"#12101C",b:"#241840",a:"#FF8040",t:"#FFF0F8"},
-  {family:"🌅 Coucher",  label:"Solstice",   bg:"#08060E",s:"#12101C",b:"#241840",a:"#E06060",t:"#FFF0F8"},
-  {family:"🪖 Militaire",label:"Kaki",       bg:"#060A06",s:"#101810",b:"#1C2E1C",a:"#80C040",t:"#F0FFE0"},
-  {family:"🪖 Militaire",label:"Jungle",     bg:"#060A06",s:"#101810",b:"#1C2E1C",a:"#40A060",t:"#F0FFE0"},
-  {family:"🪖 Militaire",label:"Olive",      bg:"#060A06",s:"#101810",b:"#1C2E1C",a:"#A0A020",t:"#F0FFE0"},
-  {family:"🪖 Militaire",label:"Camo",       bg:"#060A06",s:"#101810",b:"#1C2E1C",a:"#60C080",t:"#F0FFE0"},
-  {family:"🔵 Acier",    label:"Cobalt",     bg:"#060810",s:"#10141E",b:"#1C2A40",a:"#4080FF",t:"#E8F0FF"},
-  {family:"🔵 Acier",    label:"Acier",      bg:"#060810",s:"#10141E",b:"#1C2A40",a:"#60A0E0",t:"#E8F0FF"},
-  {family:"🔵 Acier",    label:"Glace",      bg:"#060810",s:"#10141E",b:"#1C2A40",a:"#40C0E0",t:"#E8F0FF"},
-  {family:"🔵 Acier",    label:"Minuit",     bg:"#060810",s:"#10141E",b:"#1C2A40",a:"#8080FF",t:"#E8F0FF"},
-  {family:"💜 Nuit",     label:"Améthyste",  bg:"#08060E",s:"#12101C",b:"#241840",a:"#A060FF",t:"#F0E8FF"},
-  {family:"💜 Nuit",     label:"Mauve",      bg:"#08060E",s:"#12101C",b:"#241840",a:"#C060C0",t:"#F0E8FF"},
-  {family:"💜 Nuit",     label:"Nuit",       bg:"#08060E",s:"#12101C",b:"#241840",a:"#6040C0",t:"#F0E8FF"},
-  {family:"💜 Nuit",     label:"Nebula",     bg:"#08060E",s:"#12101C",b:"#241840",a:"#E040A0",t:"#F0E8FF"},
-  {family:"⚙️ Titane",  label:"Titane",     bg:"#0E0E0E",s:"#1A1A1A",b:"#2C2C2C",a:"#FF7A00",t:"#F0F0F0"},
-  {family:"⚙️ Titane",  label:"Argent",     bg:"#0E0E0E",s:"#1A1A1A",b:"#2C2C2C",a:"#C0C0C0",t:"#F0F0F0"},
-  {family:"⚙️ Titane",  label:"Chrome",     bg:"#0E0E0E",s:"#1A1A1A",b:"#2C2C2C",a:"#80D0E0",t:"#F0F0F0"},
-  {family:"⚙️ Titane",  label:"Tungsten",   bg:"#0E0E0E",s:"#1A1A1A",b:"#2C2C2C",a:"#E0A020",t:"#F0F0F0"},
-];
-const FAM = [...new Set(PALETTES.map(p=>p.family))];
-
-// ─── PROFILES ────────────────────────────────────────────────────────────────
-const PROFILES = {
-  miovida:{ id:"miovida", name:"Miovida", emoji:"🔥", color:"#FF6B00", defaultGoal:85, defaultStart:100, defaultLevel:"intermediaire", defaultDuration:60 },
-  miamore:{ id:"miamore", name:"Miamore", emoji:"🌸", color:"#FF7A6B", defaultGoal:60, defaultStart:70,  defaultLevel:"debutant",      defaultDuration:45 },
+// ─── Default theme ────────────────────────────────────────────────────────────
+const DEFAULT_THEME={
+  pageBg:"#FFF5EE",
+  cardBg:"#FFFFFF",
+  accent:"#FF6B00",
+  btnText:"#FFFFFF",
+  textMain:"#1A1008",
+  textSub:"#8A6A50",
+  border:"#F0DDD0",
 };
 
-// ─── DATA ────────────────────────────────────────────────────────────────────
-const YT = n=>`https://www.youtube.com/results?search_query=${encodeURIComponent(n+' technique')}`;
+// ─── Profiles ─────────────────────────────────────────────────────────────────
+const PROFS={
+  miovida:{id:"miovida",name:"Miovida",profileColor:"#FF6B00",goal:85,level:"intermediaire",dur:60},
+  miamore:{id:"miamore",name:"Miamore",profileColor:"#E0507A",goal:60,level:"debutant",dur:45},
+};
 
-const BANK = {
+// ─── Exercise bank ────────────────────────────────────────────────────────────
+const YT=n=>`https://www.youtube.com/results?search_query=${encodeURIComponent(n+' technique musculation')}`;
+
+const BANK={
   push:{
     compound:{
       debutant:[
-        {name:"Développé machine pectoraux",tip:"Dos plaqué, poussée régulière"},
-        {name:"Pompes (genoux si besoin)",tip:"Corps gainé, descente 2s"},
-        {name:"Presse épaules machine",tip:"Poignées à hauteur d'épaules"},
-        {name:"Développé haltères légers",tip:"Coudes à 45°, pas d'hyperextension"},
+        {name:"Développé machine pectoraux",
+         how:["Règle le siège : poignées à hauteur de la poitrine","Dos plaqué contre le dossier, attrape les poignées","Pousse en avant jusqu'à extension des bras en expirant","Reviens lentement, contrôle la charge — ne laisse pas rebondir"],
+         tip:"Parfait pour débuter sans risque d'équilibre.",
+         alts:["Pompes au sol (genoux si besoin)","Développé haltères légers allongé"]},
+        {name:"Pompes (genoux si besoin)",
+         how:["Mains à largeur d'épaules, corps aligné tête aux pieds","Descends jusqu'à ce que la poitrine effleure le sol","Pousse en expirant pour remonter","Si trop difficile : pose les genoux — c'est une vraie variante"],
+         tip:"L'exercice le plus fondamental pour les pectoraux.",
+         alts:["Développé machine pectoraux","Pompes contre un mur"]},
+        {name:"Presse épaules machine",
+         how:["Règle le siège : poignées à hauteur des épaules","Pousse vers le haut jusqu'à quasi extension, sans verrouiller les coudes","Descends lentement jusqu'au niveau des oreilles","Expire en montant, inspire en descendant"],
+         tip:"Commence léger et augmente progressivement.",
+         alts:["Élévations frontales haltères","Développé haltères assis"]},
+        {name:"Développé haltères légers à plat",
+         how:["Allongé sur un banc, un haltère dans chaque main","Coudes à 45° du corps — ni collés ni à 90°","Descends jusqu'à ce que les coudes soient sous le niveau du banc","Pousse vers le haut en rapprochant légèrement les haltères"],
+         tip:"Commence très léger pour maîtriser le mouvement.",
+         alts:["Pompes au sol","Développé machine pectoraux"]},
       ],
       intermediaire:[
-        {name:"Développé couché barre",tip:"Prise légèrement plus large que les épaules"},
-        {name:"Développé incliné haltères",tip:"Angle 30–45°, étirement complet"},
-        {name:"Développé militaire haltères",tip:"Core gainé, ne pas cambrer"},
-        {name:"Dips barres parallèles",tip:"Légèrement penché avant pour les pecs"},
+        {name:"Développé couché barre",
+         how:["Allonge-toi, pieds à plat au sol, barre au-dessus de la poitrine","Prise un peu plus large que les épaules, en pronation","Descends la barre jusqu'à effleurer la poitrine — pas de rebond","Pousse vers le haut en expirant, coudes à 45°"],
+         tip:"Les coudes à 45° protègent les épaules. Ne jamais les ouvrir à 90°.",
+         alts:["Développé haltères à plat","Développé machine","Pompes lestées"]},
+        {name:"Développé incliné haltères",
+         how:["Banc incliné à 30–45° — pas plus sinon c'est les épaules","Haltères en main, bras tendus au-dessus de la poitrine","Descends lentement en écartant les coudes, étirement profond","Pousse vers le haut en expirant"],
+         tip:"Cible la partie haute des pectoraux.",
+         alts:["Développé couché barre","Développé incliné barre","Pompes pieds surélevés"]},
+        {name:"Développé militaire haltères",
+         how:["Assis ou debout, haltères à hauteur des épaules","Core contracté, ne cambre pas le bas du dos","Pousse vers le haut jusqu'à quasi extension","Reviens lentement jusqu'au niveau des oreilles"],
+         tip:"Si tu cambres le dos, le poids est trop lourd.",
+         alts:["Presse épaules machine","Développé militaire barre","Arnold press"]},
+        {name:"Dips barres parallèles",
+         how:["Monte sur les barres, bras tendus, penche légèrement en avant","Descends en fléchissant les coudes jusqu'à 90°","Le buste penché en avant = plus de pectoraux","Pousse vers le haut en expirant"],
+         tip:"Si trop difficile, utilise la machine assistée.",
+         alts:["Développé couché barre","Dips sur banc","Pompes lestées"]},
       ],
       expert:[
-        {name:"Développé couché barre (pause 1s)",tip:"Pause poitrine, drive explosif"},
-        {name:"Développé incliné barre",tip:"Tempo 4–1–1, contrôle total"},
-        {name:"Développé militaire barre debout",tip:"Pas d'élan des jambes"},
-        {name:"Dips lestés",tip:"Amplitude complète, descente 3s"},
+        {name:"Développé couché barre pause 1s",
+         how:["Même setup que le développé couché classique","À la descente, laisse la barre reposer 1 seconde sur la poitrine","Pas de rebond — drive explosif après la pause","Réduis la charge de 10–15% par rapport au classique"],
+         tip:"La pause élimine l'élan et maximise le recrutement musculaire.",
+         alts:["Développé couché barre","Développé couché haltères"]},
+        {name:"Développé incliné barre",
+         how:["Banc à 30–45°, prise légèrement plus large que les épaules","Descends la barre vers la partie haute de la poitrine","Tempo contrôlé : 3s descente, drive explosif","Coudes légèrement rentrés"],
+         tip:"Exercice roi pour la partie haute des pectoraux.",
+         alts:["Développé incliné haltères","Développé incliné barre EZ"]},
+        {name:"Développé militaire barre debout",
+         how:["Barre au niveau des clavicules, prise légèrement plus large que les épaules","Pieds à largeur des hanches, core et fessiers contractés","Pousse la barre au-dessus de la tête — pas d'élan des jambes","Descends lentement jusqu'aux clavicules"],
+         tip:"Debout est plus difficile qu'assis : impossible de tricher.",
+         alts:["Développé militaire haltères debout","Push press barre"]},
+        {name:"Dips lestés",
+         how:["Fixe une ceinture lestée ou tiens un haltère entre les pieds","Même technique que les dips classiques","Descends jusqu'à 90° ou plus selon la mobilité","Contrôle la montée et la descente"],
+         tip:"Ajoute 2.5kg maximum par session.",
+         alts:["Dips barres parallèles","Ring dips"]},
       ]
     },
     isolation:{
       debutant:[
-        {name:"Écartés machine (pec deck)",tip:"Légère flexion coudes, serrer en haut"},
-        {name:"Pushdown triceps (barre)",tip:"Coudes fixes contre les hanches"},
-        {name:"Élévations latérales légères",tip:"Ne pas dépasser l'épaule"},
+        {name:"Écartés machine (pec deck)",
+         how:["Règle le siège : coudes à hauteur des épaules","Légère flexion des coudes, bras calés sur les appuis","Rapproche les bras en contractant les pectoraux au milieu","Reviens lentement — ne laisse pas la charge tirer en arrière"],
+         tip:"Parfait pour sentir les pectoraux sans risque.",
+         alts:["Écarté haltères couché","Écarté poulie basse"]},
+        {name:"Pushdown triceps barre droite",
+         how:["Poulie haute, barre en prise pronation","Coudes plaqués contre les hanches — ils ne bougent pas","Pousse vers le bas jusqu'à extension complète","Remonte lentement jusqu'à 90°"],
+         tip:"Si les coudes remontent, c'est trop lourd.",
+         alts:["Pushdown corde","Extension triceps machine"]},
+        {name:"Élévations latérales légères",
+         how:["Haltères légers, légère flexion des coudes fixe","Monte les bras sur les côtés jusqu'à hauteur des épaules","Le pouce légèrement vers le bas en montant","Contrôle la descente sur 3 secondes"],
+         tip:"Reste léger et strict — exercice sensible aux compensations.",
+         alts:["Élévations latérales câble","Machine oiseau"]},
       ],
       intermediaire:[
-        {name:"Écarté poulie basse croisée",tip:"Étirement max en bas, contraction en haut"},
-        {name:"Tricep pushdown corde",tip:"Écarter la corde en bas"},
-        {name:"Élévations latérales haltères",tip:"Léger, 15–20 reps"},
-        {name:"Extension triceps au-dessus",tip:"Coudes près des oreilles"},
+        {name:"Écarté poulie basse croisée",
+         how:["Deux poulies basses, un câble dans chaque main","Légère flexion des coudes, penche légèrement le buste en avant","Monte les bras en arc jusqu'à ce qu'ils se croisent devant toi","Descends lentement avec contrôle"],
+         tip:"La trajectoire en arc maximise l'étirement et la contraction.",
+         alts:["Écarté haltères couché","Pec deck machine"]},
+        {name:"Tricep pushdown corde",
+         how:["Poulie haute avec embout corde","Coudes plaqués contre les hanches","En bas, écarte la corde vers l'extérieur — contraction maximale","Remonte lentement jusqu'à 90°"],
+         tip:"L'écartement en bas maximise la contraction des triceps.",
+         alts:["Pushdown barre droite","Extension triceps machine"]},
+        {name:"Élévations latérales haltères",
+         how:["Debout, haltères légères, légère flexion des coudes fixe","Monte les bras sur les côtés jusqu'à hauteur des épaules","Pouce légèrement vers le bas à mi-chemin","Descends en 3 secondes"],
+         tip:"15–20 reps avec brûlure = poids adapté.",
+         alts:["Élévations latérales câble 1 bras","Machine oiseau"]},
+        {name:"Extension triceps au-dessus",
+         how:["Assis ou debout, un haltère tenu à deux mains au-dessus de la tête","Coudes proches des oreilles — ils ne bougent pas","Descends le haltère derrière la tête en fléchissant les coudes","Remonte jusqu'à extension complète en expirant"],
+         tip:"Si les coudes s'écartent, c'est trop lourd.",
+         alts:["Extension câble overhead","Skullcrusher"]},
       ],
       expert:[
-        {name:"Écarté incliné haltères",tip:"Descente profonde, supination légère"},
-        {name:"Skullcrusher barre EZ",tip:"Coudes fixes, barre vers le front"},
-        {name:"Élévations latérales câble 1 bras",tip:"Contraction isométrique 1s"},
-        {name:"Overhead tricep câble (corde)",tip:"Full stretch, contraction max"},
+        {name:"Écarté incliné haltères",
+         how:["Banc incliné à 30°, haltères en main, bras tendus","Descends en arc le plus bas possible — étirement profond","Légère supination en bas (paumes vers le haut)","Remonte en arc, contraction en haut"],
+         tip:"La descente profonde recrute les fibres inférieures des pectoraux.",
+         alts:["Écarté plat haltères","Écarté poulie basse"]},
+        {name:"Skullcrusher barre EZ",
+         how:["Allongé sur banc, barre EZ en pronation au-dessus du front","Coudes pointés vers le plafond, ils restent fixes","Fléchis les coudes pour descendre la barre vers le front","Remonte à extension complète"],
+         tip:"La barre EZ réduit la tension sur les poignets.",
+         alts:["Extension triceps câble allongé","Dips lestés"]},
+        {name:"Élévations latérales câble 1 bras",
+         how:["Poulie basse d'un côté, attrape le câble du côté opposé","Monte le bras sur le côté jusqu'à l'épaule","1 seconde de contraction isométrique en haut","Descends lentement en 3 secondes"],
+         tip:"Le câble maintient une tension constante tout au long.",
+         alts:["Élévations latérales haltères","Machine oiseau"]},
+        {name:"Overhead tricep câble corde",
+         how:["Poulie haute derrière toi, attrape la corde, un pas en avant","Penche le buste en avant, coudes de chaque côté de la tête","Tire la corde vers l'avant jusqu'à extension complète","Reviens lentement — étirement max des triceps"],
+         tip:"Maximise l'étirement du chef long du triceps.",
+         alts:["Extension au-dessus haltère","Skullcrusher"]},
       ]
     },
     finisher:{
-      debutant:{name:"Circuit Pompes",tip:"10 min · Pompes max → repos 60s → recommence"},
-      intermediaire:{name:"HIIT Circuit",tip:"4 rounds · 30s Push-ups → 30s Mountain climbers → 30s Repos"},
-      expert:{name:"Tabata Burpees",tip:"8 rounds · 20s Burpees max → 10s Repos"},
+      debutant:{name:"Circuit Pompes",tip:"10 min · Pompes jusqu'à l'échec, repos 60s, recommence. Compte tes séries."},
+      intermediaire:{name:"HIIT Circuit",tip:"4 rounds · 30s Push-ups, 30s Mountain climbers, 30s Repos."},
+      expert:{name:"Tabata Burpees",tip:"8 rounds · 20s Burpees effort max, 10s Repos. Puis 6 min cardio léger."},
     }
   },
   pull:{
     compound:{
       debutant:[
-        {name:"Tirage vertical machine",tip:"Descendre jusqu'au menton"},
-        {name:"Rowing machine assis",tip:"Dos droit, tirer les coudes en arrière"},
-        {name:"Tirage horizontal poulie",tip:"Étirement complet vers l'avant"},
-        {name:"Shrug machine",tip:"1s de pause en haut"},
+        {name:"Tirage vertical machine",
+         how:["Assieds-toi, règle les cuisses sous les appuis, attrape la barre large","Penche légèrement le buste en arrière (10°), ouvre la poitrine","Tire la barre vers le sternum en ramenant les coudes vers les hanches","Remonte lentement jusqu'à extension complète des bras"],
+         tip:"Ne tire pas derrière la nuque — ça abîme les cervicales.",
+         alts:["Tirage poulie prise neutre","Tirage horizontal machine"]},
+        {name:"Rowing machine assis",
+         how:["Assieds-toi face à la machine, pieds sur les plateformes","Dos droit — ne te penche pas en arrière pour tricher","Tire les poignées vers le ventre en ramenant les coudes en arrière","Reviens en avant, bras tendus, dos qui s'étire"],
+         tip:"Le dos droit est plus important que la charge.",
+         alts:["Rowing câble assis","Tirage vertical machine"]},
+        {name:"Tirage horizontal poulie basse",
+         how:["Assieds-toi face à la poulie basse, attrape la poignée","Penche légèrement le buste en avant pour l'étirement initial","Tire vers le nombril en ramenant les coudes le long du corps","Étirement complet vers l'avant entre chaque rep"],
+         tip:"L'étirement en avant est aussi important que la traction.",
+         alts:["Rowing machine assis","Bande élastique rowing"]},
+        {name:"Shrug machine",
+         how:["Debout sur la plateforme, attrape les poignées","Bras tendus, dos droit","Hausse les épaules vers les oreilles — ne roule pas les épaules","1 seconde de contraction en haut, descends lentement"],
+         tip:"Simple et efficace pour les trapèzes.",
+         alts:["Shrug haltères","Shrug barre"]},
       ],
       intermediaire:[
-        {name:"Tractions assistées / Poulie lats",tip:"Grip large, omoplate rétractée"},
-        {name:"Rowing assis câble",tip:"Coudes collés, tirer vers le nombril"},
-        {name:"Tirage poitrine grip neutre",tip:"Tirer vers le sternum"},
-        {name:"Rowing 1 bras haltère",tip:"Dos parallèle, pleine amplitude"},
+        {name:"Tractions assistées ou tirage poulie",
+         how:["Grip large en pronation, dead hang complet avant chaque rep","Rétracte les omoplates avant de tirer","Tire jusqu'à ce que le menton dépasse la barre","Descends lentement jusqu'à extension complète"],
+         tip:"Si les tractions sont trop difficiles : poulie lats avec les mêmes indications.",
+         alts:["Tirage vertical machine","Tirage poulie prise supination"]},
+        {name:"Rowing assis câble",
+         how:["Assieds-toi, dos droit, attrape la poignée en V","Tire vers le nombril, coudes collés au corps","Ne t'incline pas en arrière pour aider","Reviens lentement, laisse le dos s'étirer"],
+         tip:"Coudes collés = dos. Coudes écartés = trapèzes.",
+         alts:["Rowing barre penché","Rowing 1 bras haltère"]},
+        {name:"Tirage poitrine grip neutre",
+         how:["Poulie haute, poignées parallèles ou poignée en V","Penche légèrement en arrière, poitrine ouverte vers le haut","Tire la poignée vers le sternum, coudes vers les hanches","Étire les bras complètement entre chaque rep"],
+         tip:"Le grip neutre est moins stressant pour les coudes et les épaules.",
+         alts:["Tractions grip neutre","Tirage prise large"]},
+        {name:"Rowing 1 bras haltère",
+         how:["Pose le genou et la main du même côté sur un banc","Dos parallèle au sol, haltère en main libre","Tire le coude vers le plafond en longeant le corps","Descends lentement jusqu'à extension complète"],
+         tip:"Pense à tirer avec le coude, pas avec la main.",
+         alts:["Rowing câble 1 bras","Rowing assis câble"]},
       ],
       expert:[
-        {name:"Tractions pronation lestées",tip:"Dead hang complet, tirer au menton"},
-        {name:"Soulevé de terre conventionnel",tip:"Barre sur tibias, dos plat"},
-        {name:"Rowing barre penché (Yates)",tip:"Dos à 70°, charge lourde"},
-        {name:"Tirage nuque poulie large",tip:"Contrôle strict"},
+        {name:"Tractions pronation lestées",
+         how:["Dead hang complet avant chaque rep","Rétracte les omoplates en premier, puis tire","Menton au-dessus de la barre","Descends lentement sur 3–4 secondes"],
+         tip:"Ajoute du poids uniquement si tu peux faire 8 reps strictes sans lest.",
+         alts:["Tractions prise neutre lestées","Tirage vertical lourd"]},
+        {name:"Soulevé de terre conventionnel",
+         how:["Barre sur les tibias, pieds à largeur des hanches","Hanches plus basses que les épaules, dos plat","Pousse le sol vers le bas, barre collée aux tibias","Hanche et épaules montent au même rythme"],
+         tip:"Le dos arrondi est la principale cause de blessure. Technique avant tout.",
+         alts:["Soulevé de terre sumo","Romanian deadlift"]},
+        {name:"Rowing barre penché Yates",
+         how:["Barre en mains, penche-toi à 70–80°","Prise en supination (paumes vers toi) pour le Yates","Tire la barre vers le nombril, coudes vers les hanches","Dos plat — si tu te redresses, c'est trop lourd"],
+         tip:"Un des exercices de dos les plus complets.",
+         alts:["Rowing barre pronation","T-bar rowing"]},
+        {name:"Tirage nuque poulie large",
+         how:["Poulie haute, grip large en pronation — 2x largeur d'épaules","Tire derrière la nuque jusqu'à toucher les trapèzes","Contrôle strict — pas de balancement","Remonte lentement jusqu'à extension complète"],
+         tip:"Si douleur d'épaule, passe au tirage poitrine.",
+         alts:["Tirage poitrine prise large","Tractions lestées"]},
       ]
     },
     isolation:{
       debutant:[
-        {name:"Face pull élastique / câble",tip:"Corde vers le visage, coudes hauts"},
-        {name:"Curl haltères assis alterné",tip:"Supination complète en montant"},
-        {name:"Curl pupitre machine",tip:"Amplitude complète"},
+        {name:"Face pull élastique ou câble",
+         how:["Élastique fixé à hauteur des yeux ou poulie haute avec corde","Attrape les deux extrémités, recule jusqu'à tension","Tire vers ton visage, coudes à hauteur des épaules","Écarte les poignets vers l'extérieur en fin de mouvement"],
+         tip:"Incontournable pour la santé des épaules et la posture.",
+         alts:["Face pull câble","Band pull-apart"]},
+        {name:"Curl haltères assis alterné",
+         how:["Assis sur un banc, dos droit, un haltère dans chaque main","Monte un bras en tournant la paume vers le haut en montant","Contraction maximale en haut, descends lentement","L'autre bras reste tendu pendant la montée"],
+         tip:"La supination en montant maximise la contraction du biceps.",
+         alts:["Curl barre droite","Curl câble"]},
+        {name:"Curl pupitre machine",
+         how:["Assieds-toi, cale les bras sur l'appui, coudes alignés","Bras tendus au départ — ne commence pas fléchi","Monte jusqu'à contraction maximale en expirant","Descends lentement jusqu'à extension complète"],
+         tip:"Le pupitre isole parfaitement les biceps.",
+         alts:["Curl haltères alterné","Curl barre droite"]},
       ],
       intermediaire:[
-        {name:"Face pull corde haute poulie",tip:"Coudes à hauteur des épaules"},
-        {name:"Curl barre droite",tip:"Coudes fixes, ne pas balancer"},
-        {name:"Curl marteau haltères",tip:"Brachioradial + long supinateur"},
-        {name:"Tirage droit haltère",tip:"Coudes montant au-dessus des épaules"},
+        {name:"Face pull corde haute poulie",
+         how:["Poulie haute avec embout corde, attrape les deux brins","Recule de 2 pas, bras tendus — tension constante","Tire vers ton visage, coudes hauts au-dessus des épaules","Rotation externe en fin : poings de chaque côté de la tête"],
+         tip:"Indispensable si tu presses beaucoup.",
+         alts:["Face pull élastique","Band pull-apart"]},
+        {name:"Curl barre droite",
+         how:["Debout, barre en prise supination, largeur des hanches","Coudes collés contre les flancs — ils ne bougent pas","Monte la barre jusqu'à contraction maximale en expirant","Descends lentement sur 3 secondes"],
+         tip:"Si les coudes avancent, tu utilises trop d'élan.",
+         alts:["Curl haltères alterné","Curl barre EZ","Curl câble"]},
+        {name:"Curl marteau haltères",
+         how:["Debout, haltères en prise neutre (pouce vers le haut)","Coudes collés au corps, monte l'haltère","Pas de rotation du poignet — prise reste neutre","Descends lentement sur 3 secondes"],
+         tip:"Cible le brachioradial, différent du biceps classique.",
+         alts:["Curl câble prise neutre","Curl haltères classique"]},
+        {name:"Tirage droit haltère",
+         how:["Debout, haltères en prise pronation devant les cuisses","Tire les coudes vers le haut et sur les côtés","Les coudes toujours au-dessus des haltères","Descends lentement"],
+         tip:"Arrête si tu ressens une gêne dans les épaules en haut.",
+         alts:["Upright row barre","Tirage droit câble"]},
       ],
       expert:[
-        {name:"Face pull + rotation externe",tip:"Finir poings vers l'extérieur"},
-        {name:"Curl araignée barre EZ",tip:"Poitrine contre l'inclinaison"},
-        {name:"Curl câble 1 bras",tip:"Contraction isométrique 1s"},
-        {name:"Shrug barre lourd",tip:"3s de contraction en haut"},
+        {name:"Face pull rotation externe",
+         how:["Même setup que l'intermédiaire","Tire jusqu'au visage, coudes hauts","En fin de mouvement, pousse les poings vers le plafond","1 seconde en position finale, reviens lentement"],
+         tip:"La rotation externe renforce les rotateurs de l'épaule.",
+         alts:["Face pull classique","Cuban press"]},
+        {name:"Curl araignée barre EZ",
+         how:["Banc incliné à 45°, allonge-toi face contre le banc","Barre EZ en dessous, bras totalement tendus","Monte en fléchissant les coudes, dos contre le banc","Descends jusqu'à extension complète"],
+         tip:"L'angle incliné étire davantage le biceps.",
+         alts:["Curl pupitre barre EZ","Curl haltères incliné"]},
+        {name:"Curl câble 1 bras concentration",
+         how:["Poulie basse, assis face à elle, coude calé sur le genou","Curl complet avec supination maximale en haut","1 seconde de contraction isométrique au sommet","Descends lentement sur 3–4 secondes"],
+         tip:"Isole totalement le biceps.",
+         alts:["Curl concentration haltère","Curl pupitre 1 bras"]},
+        {name:"Shrug barre lourd",
+         how:["Barre devant les cuisses en prise mixte pour plus lourd","Bras totalement tendus — ne plie pas les coudes","Hausse les épaules le plus haut possible","2–3 secondes de contraction, descends sur 3 secondes"],
+         tip:"Ne fais pas de rotation des épaules — inutile et usant.",
+         alts:["Shrug machine","Shrug haltères"]},
       ]
     },
     finisher:{
-      debutant:{name:"Circuit Tirage",tip:"10 min · Tirage élastique max → repos 60s → recommence"},
-      intermediaire:{name:"HIIT Circuit",tip:"4 rounds · 30s Renegade rows → 30s Corde à sauter → 30s Repos"},
-      expert:{name:"Tractions max",tip:"10 min · Tractions jusqu'à l'échec → repos 90s → recommence"},
+      debutant:{name:"Rowing machine 10 min",tip:"Rame à intensité modérée 1 min, repos 30s, recommence. Dos droit, tire les coudes vers les hanches."},
+      intermediaire:{name:"HIIT Circuit",tip:"4 rounds · 30s Renegade rows, 30s Corde à sauter, 30s Repos."},
+      expert:{name:"Tractions max",tip:"10 min · Tractions jusqu'à l'échec, repos 90s, recommence. Note tes reps."},
     }
   },
   legs:{
     compound:{
       debutant:[
-        {name:"Leg Press 45°",tip:"Pieds à largeur d'épaules"},
-        {name:"Hack squat machine",tip:"Dos plaqué, descente lente"},
-        {name:"Squat gobelet léger",tip:"Haltère contre la poitrine"},
-        {name:"Step-ups haltères légers",tip:"Pied entier sur le banc"},
+        {name:"Leg Press 45°",
+         how:["Assieds-toi, pieds à largeur des épaules à mi-hauteur de la plateforme","Descends lentement jusqu'à ce que les genoux forment 90°","Pousse en gardant le dos plaqué contre le siège","Ne verrouille pas complètement les genoux en haut"],
+         tip:"Pieds hauts = plus de fessiers. Pieds bas = plus de quadriceps.",
+         alts:["Hack squat machine","Squat gobelet"]},
+        {name:"Hack squat machine",
+         how:["Dos plaqué contre le dossier, pieds à largeur des épaules","Descends lentement, genoux alignés sur les orteils","Jusqu'à parallèle ou plus si mobilité ok","Remonte sans verrouiller les genoux"],
+         tip:"Plus sécurisé que le squat libre — parfait pour débuter.",
+         alts:["Leg press 45°","Squat gobelet"]},
+        {name:"Squat gobelet léger",
+         how:["Tiens l'haltère contre la poitrine à deux mains","Pieds à largeur des épaules, orteils vers l'extérieur","Descends comme si tu t'asseyais sur une chaise derrière toi","Talons au sol tout le long"],
+         tip:"Enseigne la mécanique du squat sans risque pour le dos.",
+         alts:["Squat à vide","Leg press 45°"]},
+        {name:"Step-ups haltères légers",
+         how:["Devant un banc, un haltère dans chaque main","Pose le pied entier sur le banc — pas juste l'avant","Pousse sur le pied avant pour monter, sans la jambe arrière","Descends lentement"],
+         tip:"Si le genou plonge vers l'intérieur, réduis la charge.",
+         alts:["Fentes avant","Montées de banc à vide"]},
       ],
       intermediaire:[
-        {name:"Back squat barre",tip:"Descente sous parallèle si mobilité ok"},
-        {name:"Romanian Deadlift haltères",tip:"Ischio étirés, dos plat"},
-        {name:"Leg Press pieds larges",tip:"Pieds écartés et hauts = plus de fessiers"},
-        {name:"Fentes marchées haltères",tip:"Grand pas, genou arrière proche du sol"},
+        {name:"Back squat barre",
+         how:["Barre sur la partie haute du trapèze","Pieds à largeur des épaules ou un peu plus, orteils à 30°","Descends sous parallèle, genoux suivent les orteils","Remonte : genoux et hanches montent au même rythme"],
+         tip:"Descendre sous parallèle est meilleur pour les genoux que s'arrêter à 90°.",
+         alts:["Gobelet squat lesté","Leg press 45°","Front squat barre"]},
+        {name:"Romanian Deadlift haltères",
+         how:["Debout, haltères devant les cuisses","Plie légèrement les genoux et verrouille-les — ils ne bougent plus","Penche le buste en avant en repoussant la hanche en arrière, dos plat","Remonte en poussant les hanches en avant"],
+         tip:"C'est la hanche qui pivote, pas le dos qui se courbe.",
+         alts:["Romanian deadlift barre","Good morning"]},
+        {name:"Leg Press pieds larges",
+         how:["Pieds écartés et hauts sur la plateforme","Descends jusqu'à 90° ou plus","Pousse en gardant le dos collé contre le siège","Ne verrouille pas les genoux en haut"],
+         tip:"Idéal pour les fessiers si le squat est difficile.",
+         alts:["Leg press pieds normaux","Squat sumo"]},
+        {name:"Fentes marchées haltères",
+         how:["Haltères dans chaque main, debout, dos droit","Grand pas en avant, descends jusqu'à ce que le genou arrière frôle le sol","Pousse sur le pied avant pour ramener le pied arrière devant","Buste droit — ne te penche pas en avant"],
+         tip:"Si le genou avant plonge vers l'intérieur, réduis la charge.",
+         alts:["Fentes statiques","Fentes bulgares"]},
       ],
       expert:[
-        {name:"Back squat barre paused",tip:"2s de pause en bas, drive explosif"},
-        {name:"Deadlift roumain barre",tip:"Amplitude maximale"},
-        {name:"Front squat barre",tip:"Coudes hauts, core sous pression"},
-        {name:"Fentes bulgares barre",tip:"Pied arrière surélevé, profondeur max"},
+        {name:"Back squat barre paused",
+         how:["Même setup que le squat classique","En bas, tiens la position 2 secondes — pas de rebond","Drive explosif vers le haut après la pause","Charge réduite de 15–20% par rapport au classique"],
+         tip:"La pause élimine l'élan et maximise la force.",
+         alts:["Box squat","Back squat classique"]},
+        {name:"Deadlift roumain barre",
+         how:["Debout, barre devant les cuisses","Plie légèrement les genoux et bloque-les","Penche le buste, barre collée aux jambes — dos plat","Remonte en poussant les hanches en avant"],
+         tip:"La barre doit rester collée aux jambes pour protéger le dos.",
+         alts:["Romanian deadlift haltères","Stiff-leg deadlift"]},
+        {name:"Front squat barre",
+         how:["Barre sur les deltoïdes avant, coudes hauts et parallèles au sol","Descent très verticale, buste droit","Hanche descend entre les jambes, sous parallèle","Genoux suivent les orteils"],
+         tip:"Si les coudes descendent, le poids chute en avant.",
+         alts:["Back squat barre","Gobelet squat"]},
+        {name:"Fentes bulgares barre",
+         how:["Pied arrière sur banc, barre sur les trapèzes","Descends en pliant le genou avant jusqu'au sol","Buste légèrement incliné en avant est ok","Pousse sur le talon du pied avant pour remonter"],
+         tip:"Un des meilleurs exercices pour fessiers et quadriceps.",
+         alts:["Fentes bulgares haltères","Fentes marchées barre"]},
       ]
     },
     isolation:{
       debutant:[
-        {name:"Leg Extension machine",tip:"Pause 1s en haut"},
-        {name:"Leg Curl couché machine",tip:"Hanches plaquées, amplitude complète"},
-        {name:"Mollets machine assis",tip:"Amplitude maximale, 2s de pause"},
+        {name:"Leg Extension machine",
+         how:["Assieds-toi, ajuste l'appui de cheville","Monte jusqu'à extension complète en expirant","1 seconde de contraction en haut","Descends lentement sur 3 secondes"],
+         tip:"Commence léger — simple mais efficace.",
+         alts:["Squat à vide","Wall sit isométrique"]},
+        {name:"Leg Curl couché machine",
+         how:["Allonge-toi face contre la machine, l'appui derrière les talons","Hanches plaquées — elles ne doivent pas décoller","Fléchis les genoux jusqu'à 90° en expirant","Descends lentement sur 3 secondes"],
+         tip:"Si les hanches décollent, c'est trop lourd.",
+         alts:["Leg curl assis","Good morning léger"]},
+        {name:"Mollets machine assis",
+         how:["Assieds-toi, genoux sous les appuis, avant-pieds sur la plateforme","Descends les talons le plus bas possible — étirement maximum","Monte sur la pointe des pieds, 2 secondes de contraction","Descends lentement sur 3 secondes"],
+         tip:"Les mollets assis ciblent le soléaire.",
+         alts:["Mollets debout","Mollets sur leg press"]},
       ],
       intermediaire:[
-        {name:"Leg Extension machine",tip:"Tempo 2–1–2, brûlure en fin de série"},
-        {name:"Leg Curl couché machine",tip:"Contraction max"},
-        {name:"Fentes bulgares haltères",tip:"4–6 reps / jambe"},
-        {name:"Mollets debout",tip:"Full ROM, pause 2s en bas"},
+        {name:"Leg Extension tempo",
+         how:["Même position que débutant mais avec tempo 2–1–2","Monte en 2s, tiens 1s en haut, descends en 2s","12–15 reps avec sensation de brûlure","Drop set possible sur la dernière série"],
+         tip:"Le drop set : réduis de 20% et continue jusqu'au prochain échec.",
+         alts:["Leg extension lent","Leg press 1 jambe"]},
+        {name:"Leg Curl couché machine",
+         how:["Amplitude complète — de l'extension totale à la flexion maximale","Contraction max en haut, tiens 1 seconde","Descends en 3 secondes — phase excentrique","Hanches plaquées — elles ne décollent pas"],
+         tip:"L'excentrique lent est aussi important que la montée.",
+         alts:["Nordic curl","Leg curl assis"]},
+        {name:"Fentes bulgares haltères",
+         how:["Pied arrière sur banc, pieds avant à 60–70 cm","Descends en gardant le buste droit","Genou arrière frôle le sol — amplitude maximale","Pousse sur le talon avant"],
+         tip:"Le pied arrière donne de la stabilité — n'y mets pas de poids.",
+         alts:["Fentes marchées","Step-ups lourds"]},
+        {name:"Mollets debout",
+         how:["Debout, avant-pieds sur un step surélevé","Talons le plus bas possible — étirement complet","Monte sur la pointe des pieds, 2s de contraction","Descends lentement sur 3s"],
+         tip:"15–20 reps nécessaires — les mollets récupèrent vite.",
+         alts:["Mollets machine assis","Mollets sur leg press"]},
       ],
       expert:[
-        {name:"Leg Extension drop set",tip:"Drop 20% à chaque série"},
-        {name:"Leg Curl debout 1 jambe",tip:"Isolation totale"},
-        {name:"Good morning barre légère",tip:"Dos strictement plat"},
-        {name:"Mollets debout lourds",tip:"Full amplitude, pause bas"},
+        {name:"Leg Extension drop set",
+         how:["Série normale jusqu'à l'échec","Réduis de 20% et continue jusqu'au prochain échec","Encore : réduis de 20% et pousse jusqu'à l'échec final","3 drops = 1 série"],
+         tip:"Produit une brûlure intense — c'est normal.",
+         alts:["Leg extension rest-pause","Leg extension 1 jambe"]},
+        {name:"Leg Curl debout 1 jambe",
+         how:["Machine debout ou câble avec manchette de cheville","1 jambe fixe, l'autre fléchit vers la fesse","Contraction maximale en haut","Descends lentement sur 3–4 secondes"],
+         tip:"Révèle et corrige les déséquilibres entre les jambes.",
+         alts:["Leg curl couché 1 jambe","Nordic curl"]},
+        {name:"Good morning barre légère",
+         how:["Barre sur les trapèzes, genoux légèrement fléchis","Penche le buste en poussant la hanche en arrière — dos strictement plat","Jusqu'à ce que le buste soit proche du parallèle","Remonte en poussant les hanches en avant"],
+         tip:"Exercice excellent mais technique délicate — reste léger.",
+         alts:["Romanian deadlift","Hyperextension dos"]},
+        {name:"Mollets debout lourds",
+         how:["Machine ou Smith machine, charge lourde","Amplitude complète : étirement total en bas, contraction totale en haut","Pause 2s en bas et 2s en haut","15–20 reps minimum"],
+         tip:"Les mollets sont très résistants — volume ET charge nécessaires.",
+         alts:["Mollets 1 jambe lestés","Mollets sur leg press"]},
       ]
     },
     finisher:{
-      debutant:{name:"Circuit Squats",tip:"10 min · 20 squats air + 10 fentes/jambe → repos 60s → recommence"},
-      intermediaire:{name:"HIIT Jambes",tip:"4 rounds · 30s Squat jumps → 30s Step-ups → 30s Repos"},
-      expert:{name:"Explosif Jambes",tip:"15 min · 10 box jumps + 10 squat jumps → repos 45s → recommence"},
+      debutant:{name:"Circuit Squats",tip:"10 min · 20 squats air + 10 fentes par jambe, repos 60s, recommence."},
+      intermediaire:{name:"HIIT Jambes",tip:"4 rounds · 30s Squat jumps, 30s Step-ups, 30s Repos."},
+      expert:{name:"Explosif Jambes",tip:"15 min · 10 box jumps + 10 squat jumps, repos 45s, recommence."},
     }
   },
   full:{
     compound:{
       debutant:[
-        {name:"Squat gobelet léger",tip:"Haltère contre la poitrine"},
-        {name:"Développé machine pectoraux",tip:"Régler le siège, poussée symétrique"},
-        {name:"Tirage horizontal poulie",tip:"Dos droit, tirer les coudes en arrière"},
-        {name:"Hip thrust poids de corps",tip:"Fessiers serrés en haut"},
+        {name:"Squat gobelet léger",how:["Haltère contre la poitrine à deux mains","Pieds à largeur des épaules, orteils vers l'extérieur","Descends en gardant les talons au sol","Remonte en poussant les genoux vers l'extérieur"],tip:"Exercice complet qui enseigne la mécanique du squat.",alts:["Leg press 45°","Hack squat machine"]},
+        {name:"Développé machine pectoraux",how:["Règle le siège, poignées à hauteur de poitrine","Pousse en avant jusqu'à extension","Reviens lentement avec contrôle","Dos plaqué contre le dossier"],tip:"Sans risque d'équilibre.",alts:["Pompes au sol","Développé haltères légers"]},
+        {name:"Tirage horizontal poulie",how:["Assieds-toi face à la poulie basse","Tire vers le nombril, coudes le long du corps","Étirement complet vers l'avant entre chaque rep","Dos droit"],tip:"Renforce l'ensemble du dos.",alts:["Rowing machine assis","Bande élastique rowing"]},
+        {name:"Hip thrust poids de corps",how:["Épaules sur banc, pieds à plat, genoux à 90°","Descends les hanches vers le sol","Pousse vers le haut en serrant les fessiers","1s de contraction en haut"],tip:"Exercice roi pour les fessiers.",alts:["Pont fessier au sol","Hip thrust haltère"]},
       ],
       intermediaire:[
-        {name:"Squat gobelet progressif",tip:"Genoux ouverts, dos droit"},
-        {name:"Développé haltères à plat",tip:"Étirement en bas, contraction forte"},
-        {name:"Rowing 1 bras haltère",tip:"Pleine amplitude, omoplate active"},
-        {name:"Romanian Deadlift haltères",tip:"Charnière hanche, dos plat"},
+        {name:"Squat gobelet progressif",how:["Haltère lourd contre la poitrine","Genoux ouverts vers l'extérieur, dos droit","Sous parallèle si mobilité le permet","Pousse sur les talons pour remonter"],tip:"Augmente de 2–4kg par semaine.",alts:["Back squat barre","Leg press 45°"]},
+        {name:"Développé haltères à plat",how:["Allongé sur banc, haltères en main","Descends jusqu'à un étirement profond","Pousse vers le haut en rapprochant légèrement les haltères","Coudes à 45° du corps"],tip:"Plus d'amplitude que la barre.",alts:["Développé couché barre","Pompes lestées"]},
+        {name:"Rowing 1 bras haltère",how:["Genou et main sur banc, dos parallèle au sol","Haltère en main libre, bras tendu","Tire le coude vers le plafond","Descends lentement à extension complète"],tip:"Pense coude vers le plafond, pas haltère vers le haut.",alts:["Rowing câble 1 bras","Rowing assis câble"]},
+        {name:"Romanian Deadlift haltères",how:["Debout, haltères devant les cuisses","Genoux légèrement fléchis et verrouillés","Buste en avant, hanche en arrière — dos plat","Descends jusqu'à sentir l'étirement des ischio"],tip:"La charnière de hanche est le mouvement fondamental.",alts:["Romanian deadlift barre","Good morning"]},
       ],
       expert:[
-        {name:"Squat barre",tip:"Profondeur maximale"},
-        {name:"Développé couché barre",tip:"Charge lourde, 5–6 reps"},
-        {name:"Rowing barre penché",tip:"Dos horizontal, charge lourde"},
-        {name:"Deadlift conventionnel",tip:"Drive des talons, barre sur tibias"},
+        {name:"Squat barre",how:["Barre sur les trapèzes, pieds à largeur","Descent contrôlée sous parallèle","Drive explosif vers le haut","Dos plat, regard légèrement au-dessus de l'horizon"],tip:"La technique prime toujours sur la charge.",alts:["Front squat","Box squat"]},
+        {name:"Développé couché barre",how:["Allongé, prise large en pronation","Descends jusqu'à la poitrine","Pousse explosif en expirant","Coudes à 45°"],tip:"5–6 reps avec technique parfaite.",alts:["Développé haltères lourd","Dips lestés"]},
+        {name:"Rowing barre penché",how:["Buste horizontal, barre en pronation ou supination","Tire vers le nombril, coudes le long du corps","Omoplate rétractée à chaque rep","Dos plat — aucun arrondi lombaire"],tip:"Un des meilleurs exercices de dos.",alts:["T-bar rowing","Rowing 1 bras lourd"]},
+        {name:"Deadlift conventionnel",how:["Barre sur les tibias, prise double ou mixte","Hanches plus basses que les épaules, dos plat","Barre collée aux tibias durant toute la montée","Verrou en haut : hanches et genoux tendus"],tip:"Ne jamais sacrifier la technique pour la charge.",alts:["Soulevé sumo","Trap bar deadlift"]},
       ]
     },
     isolation:{
       debutant:[
-        {name:"Crunch sol",tip:"Expiration en montant"},
-        {name:"Planche (30s)",tip:"Hanche neutre"},
-        {name:"Russian Twist poids de corps",tip:"Rotation lente, pieds décollés"},
+        {name:"Crunch sol",how:["Allongé, genoux fléchis, pieds au sol","Mains derrière la nuque sans tirer le cou","Monte les épaules du sol en expirant","Descends lentement"],tip:"Mouvement court — les abdos n'ont pas besoin de grande amplitude.",alts:["Crunch machine","Relevé de buste partiel"]},
+        {name:"Planche 30 secondes",how:["Avant-bras au sol, coudes sous les épaules","Corps en ligne droite de la tête aux talons","Ventre rentré, fessiers contractés","Respire normalement"],tip:"Si 30s est trop dur : commence à 15s.",alts:["Planche genoux","Dead bug"]},
+        {name:"Russian Twist poids de corps",how:["Assis, pieds décollés, buste incliné à 45°","Mains jointes devant toi","Tourne de gauche à droite en touchant le sol","Rotation lente et contrôlée"],tip:"Si trop dur : garde les pieds au sol.",alts:["Russian twist léger","Side bend"]},
       ],
       intermediaire:[
-        {name:"Crunch câble / sol",tip:"Contraction forte, descente lente"},
-        {name:"Relevé de jambes allongé",tip:"Dos plaqué au sol"},
-        {name:"Planche dynamique",tip:"Avant-bras → mains → avant-bras"},
-        {name:"Russian Twist médecine ball",tip:"Obliques, dos légèrement incliné"},
+        {name:"Crunch câble ou sol",how:["Câble : à genoux, poulie haute, tire vers les genoux","Sol : tempo 2–1–2","Expire fort à la contraction","Descends lentement"],tip:"Le câble maintient une tension constante.",alts:["Crunch sur ballon","Crunch avec poids"]},
+        {name:"Relevé de jambes allongé",how:["Allongé, mains sous les fessiers","Jambes tendues ou légèrement fléchies","Monte les jambes jusqu'à 90° en expirant","Descends lentement — ne touche pas le sol"],tip:"Bas du dos plaqué au sol tout le long.",alts:["Relevé de jambes suspendu","Flutter kicks"]},
+        {name:"Planche dynamique",how:["Position de planche sur avant-bras","Pousse sur la main droite, puis gauche — position pompe","Redescends sur l'avant-bras droit, puis gauche","Alterne le côté de départ à chaque rep"],tip:"Contrôle parfait — les hanches ne basculent pas.",alts:["Planche statique longue","Mountain climbers lents"]},
+        {name:"Russian Twist médecine ball",how:["Assis, médecine ball, pieds décollés","Buste incliné à 45°, dos droit","Touche le sol de gauche à droite avec le ballon","Plus lent = plus efficace"],tip:"La rotation vient des obliques, pas des épaules.",alts:["Russian twist haltère","Bicycle crunch"]},
       ],
       expert:[
-        {name:"Relevé de jambes suspendu",tip:"Ne pas balancer"},
-        {name:"Ab wheel rollout",tip:"Rentrer le ventre avant de revenir"},
-        {name:"Hollow body hold 30s",tip:"Dos plaqué, bras et jambes tendus"},
-        {name:"Dragon flag progression",tip:"Contrôle excentrique strict"},
+        {name:"Relevé de jambes suspendu",how:["Suspendu à une barre, bras tendus","Monte les genoux vers la poitrine ou jambes tendues à l'horizontal","Ne balance pas — mouvement strict","Descends lentement"],tip:"Si tu balances, ralentis — tu utilises l'élan.",alts:["Relevé de jambes allongé lesté","Hanging knee raise"]},
+        {name:"Ab wheel rollout",how:["Agenouillé, roue dans les mains, dos plat","Rentre le ventre avant de rouler en avant","Avance le plus loin possible sans cambrer","Reviens en contractant les abdos"],tip:"Si le dos cambre, réduis l'amplitude.",alts:["Rollout sur ballon","Dead bug"]},
+        {name:"Hollow body hold",how:["Allongé, bras tendus au-dessus de la tête","Creuse le bas du dos contre le sol","Lève les épaules et les jambes — forme un U inversé","Maintiens sans forcer la respiration"],tip:"Exercice de base de la gymnastique.",alts:["Hollow body rock","Dead bug"]},
+        {name:"Dragon flag progression",how:["Allongé sur banc, attrape derrière ta tête","Corps droit, descends lentement en contrôlant","Commence genoux fléchis, progresse vers jambes tendues","Ne touche pas le banc en bas"],tip:"Une des progressions les plus difficiles du core.",alts:["Hollow body hold","Ab wheel"]},
       ]
     },
     finisher:{
-      debutant:{name:"Cardio Léger",tip:"10 min · 30s Jumping jacks → 30s Marche → recommence"},
-      intermediaire:{name:"HIIT Full",tip:"4 rounds · 20s Burpees → 20s Mountain climbers → 20s Repos"},
-      expert:{name:"Tabata Lestés",tip:"8 rounds · 20s Burpees lestés → 10s Repos"},
+      debutant:{name:"Cardio Léger",tip:"10 min · 30s Jumping jacks, 30s Marche sur place, recommence."},
+      intermediaire:{name:"HIIT Full",tip:"4 rounds · 20s Burpees, 20s Mountain climbers, 20s Repos."},
+      expert:{name:"Tabata Lestés",tip:"8 rounds · 20s Burpees avec gilet lesté, 10s Repos. Puis 6 min cardio."},
     }
   }
 };
 
-const SESSIONS = {
-  push:{label:"PUSH",sub:"Pectoraux · Épaules · Triceps",icon:"🔥"},
-  pull:{label:"PULL",sub:"Dos · Biceps · Trapèzes",       icon:"💪"},
-  legs:{label:"LEGS",sub:"Quadriceps · Ischio · Fessiers",icon:"🌶"},
-  full:{label:"FULL",sub:"Full Body · Abdos · Cardio",    icon:"⚡"},
+const SESSIONS={
+  push:{label:"PUSH",sub:"Pectoraux · Épaules · Triceps"},
+  pull:{label:"PULL",sub:"Dos · Biceps · Trapèzes"},
+  legs:{label:"LEGS",sub:"Quadriceps · Ischio · Fessiers"},
+  full:{label:"FULL",sub:"Full Body · Abdos · Cardio"},
 };
 const LEVELS=[
-  {key:"debutant",      label:"DÉBUTANT",      sub:"Machines & corps",         dots:"● ○ ○"},
-  {key:"intermediaire", label:"INTERMÉDIAIRE", sub:"Barre & haltères",         dots:"● ● ○"},
-  {key:"expert",        label:"EXPERT",        sub:"Charges lourdes",           dots:"● ● ●"},
+  {key:"debutant",      label:"Débutant",      sub:"Machines & corps"},
+  {key:"intermediaire", label:"Intermédiaire", sub:"Barre & haltères"},
+  {key:"expert",        label:"Expert",        sub:"Charges lourdes"},
 ];
 const DURATIONS=[45,60,90,120];
 
-function buildProgram(session, level, duration){
+function buildProgram(session,level,duration){
   const bank=BANK[session];
   const cfg={
-    45: {warmup:5,  cN:2,cS:3,iN:1,iS:2,fin:false,finMin:0},
-    60: {warmup:8,  cN:2,cS:3,iN:2,iS:2,fin:true, finMin:8},
-    90: {warmup:10, cN:3,cS:4,iN:2,iS:3,fin:true, finMin:12},
-    120:{warmup:10, cN:3,cS:4,iN:3,iS:3,fin:true, finMin:18},
+    45:{warmup:5, cN:2,cS:3,iN:1,iS:2,fin:false,finMin:0},
+    60:{warmup:8, cN:2,cS:3,iN:2,iS:2,fin:true, finMin:8},
+    90:{warmup:10,cN:3,cS:4,iN:2,iS:3,fin:true, finMin:12},
+    120:{warmup:10,cN:3,cS:4,iN:3,iS:3,fin:true, finMin:18},
   }[duration];
   const rep={
     debutant:     {c:"12–15",i:"15–20",rc:75, ri:45},
@@ -302,239 +480,321 @@ function buildProgram(session, level, duration){
     expert:       {c:"5–8",  i:"10–12",rc:120,ri:75},
   }[level];
   const phases=[];
-  phases.push({name:"ÉCHAUFFEMENT",dur:`${cfg.warmup} min`,exs:[{
-    name:"Cardio léger + mobilité",sets:1,reps:`${cfg.warmup} min`,rest:0,isSimple:true,
-    tip:level==="debutant"?"Vélo ou marche rapide, FC 110–120 bpm":level==="intermediaire"?"Rameur, FC 120–130 bpm + mobilité":"Rameur intensité progressive + activation"
-  }]});
-  phases.push({
-    name:"COMPOUND",dur:`~${Math.round(cfg.cN*cfg.cS*(rep.rc/60+1))} min`,
-    exs:bank.compound[level].slice(0,cfg.cN).map(e=>({...e,sets:cfg.cS,reps:rep.c,rest:rep.rc}))
-  });
-  phases.push({
-    name:"ISOLATION",dur:`~${Math.round(cfg.iN*cfg.iS*(rep.ri/60+0.75))} min`,
-    exs:bank.isolation[level].slice(0,cfg.iN).map(e=>({...e,sets:cfg.iS,reps:rep.i,rest:rep.ri}))
-  });
-  if(cfg.fin){
-    const f=bank.finisher[level];
-    phases.push({name:"FINISHER",dur:`${cfg.finMin} min`,exs:[{name:f.name,tip:f.tip,sets:1,reps:`${cfg.finMin} min`,rest:0,isSimple:true}]});
-  }
+  phases.push({name:"Échauffement",dur:`${cfg.warmup} min`,exs:[{name:"Cardio léger + mobilité",sets:1,reps:`${cfg.warmup} min`,rest:0,isSimple:true,tip:level==="debutant"?"Vélo ou marche rapide, FC 110–120 bpm — tu dois pouvoir parler.":"Rameur FC 120–130 bpm + quelques mouvements de mobilité articulaire.",how:[],alts:[]}]});
+  phases.push({name:"Compound",dur:`~${Math.round(cfg.cN*cfg.cS*(rep.rc/60+1))} min`,exs:bank.compound[level].slice(0,cfg.cN).map(e=>({...e,sets:cfg.cS,reps:rep.c,rest:rep.rc}))});
+  phases.push({name:"Isolation",dur:`~${Math.round(cfg.iN*cfg.iS*(rep.ri/60+0.75))} min`,exs:bank.isolation[level].slice(0,cfg.iN).map(e=>({...e,sets:cfg.iS,reps:rep.i,rest:rep.ri}))});
+  if(cfg.fin){const f=bank.finisher[level];phases.push({name:"Finisher",dur:`${cfg.finMin} min`,exs:[{name:f.name,tip:f.tip,sets:1,reps:`${cfg.finMin} min`,rest:0,isSimple:true,how:[],alts:[]}]});}
   return phases;
 }
 
-// ─── REST TIMER (FORGE STYLE) ─────────────────────────────────────────────────
-function RestTimer({seconds, onDone, a}){
+
+// ─── Rest Timer ───────────────────────────────────────────────────────────────
+function RestTimer({seconds,onDone,accent}){
   const endRef=useRef(Date.now()+seconds*1000);
   const [left,setLeft]=useState(seconds);
-  const t=useRef();
+  const tRef=useRef();
   const tick=useCallback(()=>{
     const rem=Math.max(0,Math.ceil((endRef.current-Date.now())/1000));
     setLeft(rem);
     if(rem<=0){onDone();return;}
-    t.current=setTimeout(tick,250);
+    tRef.current=setTimeout(tick,250);
   },[onDone]);
   useEffect(()=>{
-    t.current=setTimeout(tick,100);
-    const f=()=>{if(!document.hidden){clearTimeout(t.current);tick();}};
+    tRef.current=setTimeout(tick,100);
+    const f=()=>{if(!document.hidden){clearTimeout(tRef.current);tick();}};
     document.addEventListener('visibilitychange',f);
-    return()=>{clearTimeout(t.current);document.removeEventListener('visibilitychange',f);};
+    return()=>{clearTimeout(tRef.current);document.removeEventListener('visibilitychange',f);};
   },[tick]);
   const pct=(seconds-left)/seconds;
-  const red=left<=3&&left>0;
-  const col=red?"#FF2020":a;
+  const r=18,circ=2*Math.PI*r;
+  const col=left<=3&&left>0?"#E03030":accent;
   return(
-    <div style={{marginTop:12,background:"#111",borderLeft:`3px solid ${col}`,padding:"10px 14px",display:"flex",alignItems:"center",gap:12}}>
-      {/* Big countdown number */}
-      <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:42,lineHeight:1,color:col,minWidth:60}}>{left}</div>
-      <div style={{flex:1}}>
-        <div style={{fontSize:9,letterSpacing:3,color:"#444",marginBottom:6}}>RÉCUPÉRATION</div>
-        <div style={{height:4,background:"#1A1A1A",borderRadius:0}}>
-          <div style={{height:"100%",width:`${pct*100}%`,background:col,transition:"width 0.25s linear"}}/>
-        </div>
+    <div className="fu" style={{marginTop:10,borderRadius:14,padding:"10px 14px",background:col+"14",border:`1.5px solid ${col}33`,display:"flex",alignItems:"center",gap:12}}>
+      <div style={{position:"relative",width:44,height:44,flexShrink:0}}>
+        <svg width={44} height={44} viewBox="0 0 44 44" style={{transform:"rotate(-90deg)"}}>
+          <circle cx={22} cy={22} r={r} fill="none" stroke={col+"22"} strokeWidth={3}/>
+          <circle cx={22} cy={22} r={r} fill="none" stroke={col} strokeWidth={3}
+            strokeDasharray={String(circ)} strokeDashoffset={String(circ*(1-pct))}
+            style={{transition:"stroke-dashoffset 0.25s linear"}}/>
+        </svg>
+        <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue'",fontSize:15,color:col,lineHeight:1}}>{left}</div>
       </div>
-      <button onClick={onDone} style={{background:"transparent",border:"1px solid #333",color:"#555",padding:"4px 10px",cursor:"pointer",fontSize:11,fontFamily:"'Bebas Neue',sans-serif",letterSpacing:1}}>SKIP</button>
+      <div style={{flex:1}}>
+        <div style={{fontSize:9,color:col,letterSpacing:2,fontWeight:600,marginBottom:2}}>RÉCUPÉRATION</div>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:col,letterSpacing:1,lineHeight:1}}>{left}s</div>
+      </div>
+      <button onClick={onDone} style={{background:"white",border:`1.5px solid ${col}33`,borderRadius:10,padding:"5px 12px",color:col,fontSize:11,cursor:"pointer",fontWeight:700}}>Skip</button>
     </div>
   );
 }
 
-// ─── EXERCISE CARD (FORGE STYLE) ──────────────────────────────────────────────
-function ExCard({ex, a, s, b}){
+// ─── Exercise Card ────────────────────────────────────────────────────────────
+function ExCard({ex,accent,cardBg,pageBg,textMain,textSub,borderCol}){
   const [done,setDone]=useState(new Array(ex.sets).fill(false));
   const [timer,setTimer]=useState(null);
+  const [showHow,setShowHow]=useState(false);
+  const [showAlts,setShowAlts]=useState(false);
   const toggle=i=>{const n=[...done];n[i]=!n[i];setDone(n);if(n[i]&&ex.rest>0)setTimer(ex.rest);};
   const all=done.every(Boolean);
+  const A=accent;
   return(
-    <div style={{borderLeft:`3px solid ${all?a:"#222"}`,paddingLeft:12,marginBottom:14,transition:"border-color 0.3s"}}>
-      {/* Name row */}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
-        <div style={{flex:1}}>
-          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:1,color:all?a:"#FFF",lineHeight:1.1}}>{ex.name}</div>
-          <div style={{fontSize:11,color:"#444",marginTop:2,fontFamily:"'DM Sans'"}}>
-            {ex.sets>1?`${ex.sets} × ${ex.reps}`:ex.reps}
-            {ex.rest>0&&<span style={{color:"#333"}}> · {ex.rest}s repos</span>}
+    <div className="fu" style={{
+      background:all?`linear-gradient(135deg,${A}20,${A}08)`:cardBg,
+      borderRadius:20,padding:"16px",marginBottom:12,
+      border:`2px solid ${all?A+"55":borderCol}`,
+      boxShadow:all?`0 6px 24px ${A}22`:"0 2px 10px rgba(0,0,0,0.06)",
+      transition:"all 0.3s"
+    }}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+        <div style={{flex:1,paddingRight:10}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:20,letterSpacing:1,lineHeight:1.15,
+            color:all?A:textMain,marginBottom:6}}>{ex.name}</div>
+          <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+            {ex.sets>1&&<span style={{
+              background:`${A}18`,borderRadius:20,padding:"3px 10px",
+              fontSize:9,color:A,fontWeight:700,letterSpacing:0.5}}>{ex.sets} séries</span>}
+            <span style={{
+              background:`${A}18`,borderRadius:20,padding:"3px 10px",
+              fontSize:9,color:A,fontWeight:700,letterSpacing:0.5}}>{ex.reps}</span>
+            {ex.rest>0&&<span style={{
+              background:borderCol,borderRadius:20,padding:"3px 10px",
+              fontSize:9,color:textSub,fontWeight:600}}>{ex.rest}s repos</span>}
           </div>
         </div>
-        <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0,marginLeft:8}}>
-          {all&&<span style={{fontSize:16,color:a}}>✓</span>}
+        <div style={{display:"flex",flexDirection:"column",gap:6,flexShrink:0}}>
+          {all&&<div style={{
+            width:34,height:34,borderRadius:12,
+            background:`linear-gradient(135deg,${A},${A}BB)`,
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontSize:16,color:"#fff",boxShadow:`0 4px 12px ${A}44`}}>✓</div>}
           <a href={YT(ex.name)} target="_blank" rel="noopener noreferrer" style={{
-            width:32,height:32,background:`${a}18`,border:`1px solid ${a}44`,
-            display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
-            textDecoration:"none",gap:1
-          }}>
-            <span style={{fontSize:11,color:a}}>▶</span>
-            <span style={{fontSize:6,color:a,fontFamily:"'DM Sans'",fontWeight:700,letterSpacing:0.5}}>VID</span>
+            width:34,height:34,borderRadius:12,
+            background:`${A}18`,border:`2px solid ${A}44`,
+            display:"flex",flexDirection:"column",alignItems:"center",
+            justifyContent:"center",textDecoration:"none",gap:1}}>
+            <span style={{fontSize:11,color:A,lineHeight:1}}>▶</span>
+            <span style={{fontSize:7,color:A,fontWeight:700,letterSpacing:0.5}}>VID</span>
           </a>
         </div>
       </div>
-      {/* Tip */}
-      {ex.tip&&<div style={{fontSize:11,color:"#444",fontStyle:"italic",marginBottom:8,lineHeight:1.5}}>{ex.tip}</div>}
-      {/* Series buttons */}
+
+      {ex.tip&&<div style={{
+        fontSize:11,color:textSub,fontStyle:"italic",
+        marginBottom:10,lineHeight:1.6,
+        borderLeft:`3px solid ${A}44`,paddingLeft:8}}>{ex.tip}</div>}
+
+      {ex.how&&ex.how.length>0&&(
+        <div style={{marginBottom:8}}>
+          <button onClick={()=>setShowHow(p=>!p)} style={{
+            background:borderCol,border:"none",borderRadius:10,
+            padding:"6px 12px",color:textSub,fontSize:10,
+            cursor:"pointer",fontWeight:700,
+            display:"flex",alignItems:"center",gap:5}}>
+            <span style={{color:A,fontSize:10}}>{showHow?"▼":"▶"}</span>
+            <span>COMMENT FAIRE</span>
+          </button>
+          {showHow&&(
+            <div className="fu" style={{
+              marginTop:8,background:`${A}08`,
+              borderRadius:14,padding:"12px 14px",
+              border:`1.5px solid ${A}22`}}>
+              {ex.how.map((step,i)=>(
+                <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",
+                  marginBottom:i<ex.how.length-1?8:0}}>
+                  <div style={{
+                    minWidth:22,height:22,borderRadius:8,
+                    background:`linear-gradient(135deg,${A},${A}AA)`,
+                    display:"flex",alignItems:"center",justifyContent:"center",
+                    fontSize:9,fontWeight:700,color:"#fff",flexShrink:0,marginTop:1}}>{i+1}</div>
+                  <div style={{fontSize:11,color:textMain,lineHeight:1.6}}>{step}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {ex.alts&&ex.alts.length>0&&(
+        <div style={{marginBottom:10}}>
+          <button onClick={()=>setShowAlts(p=>!p)} style={{
+            background:borderCol,border:"none",borderRadius:10,
+            padding:"6px 12px",color:textSub,fontSize:10,
+            cursor:"pointer",fontWeight:700,
+            display:"flex",alignItems:"center",gap:5}}>
+            <span>↔</span><span>ALTERNATIVES</span>
+          </button>
+          {showAlts&&(
+            <div className="fu" style={{marginTop:8,display:"flex",flexDirection:"column",gap:6}}>
+              {ex.alts.map((alt,i)=>(
+                <div key={i} style={{
+                  background:borderCol,borderRadius:12,
+                  padding:"8px 12px",display:"flex",
+                  justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{fontSize:11,color:textMain,flex:1}}>{alt}</div>
+                  <a href={YT(alt)} target="_blank" rel="noopener noreferrer" style={{
+                    fontSize:9,color:A,textDecoration:"none",
+                    background:`${A}18`,borderRadius:8,padding:"3px 9px",
+                    border:`1.5px solid ${A}33`,flexShrink:0,marginLeft:8,fontWeight:700}}>▶</a>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {!ex.isSimple&&ex.sets>1&&(
-        <div style={{display:"flex",gap:4,marginBottom:4}}>
+        <div style={{display:"flex",gap:6,marginTop:4}}>
           {done.map((d,i)=>(
             <button key={i} onClick={()=>toggle(i)} style={{
-              flex:1,height:38,border:`2px solid ${d?a:"#222"}`,
-              background:d?a:"transparent",
-              color:d?b||"#000":"#333",
-              fontFamily:"'Bebas Neue',sans-serif",fontSize:14,letterSpacing:1,
-              cursor:"pointer",transition:"all 0.15s"
-            }}>S{i+1}</button>
+              flex:1,height:46,borderRadius:14,
+              border:`2px solid ${d?A:borderCol}`,
+              background:d?`linear-gradient(135deg,${A},${A}CC)`:pageBg,
+              color:d?"#fff":textSub,
+              fontFamily:"'Bebas Neue'",fontSize:15,letterSpacing:1,
+              cursor:"pointer",transition:"all 0.2s",
+              boxShadow:d?`0 4px 14px ${A}44`:"none"}}>S{i+1}</button>
           ))}
         </div>
       )}
       {ex.isSimple&&(
         <button onClick={()=>toggle(0)} style={{
-          padding:"7px 16px",border:`1px solid ${done[0]?a:"#222"}`,
-          background:done[0]?a:"transparent",
-          color:done[0]?b||"#000":"#444",
-          fontFamily:"'Bebas Neue',sans-serif",fontSize:13,letterSpacing:1,
-          cursor:"pointer",transition:"all 0.15s"
-        }}>{done[0]?"✓ TERMINÉ":"MARQUER FAIT"}</button>
+          marginTop:4,padding:"9px 20px",borderRadius:12,
+          border:`2px solid ${done[0]?A:borderCol}`,
+          background:done[0]?`linear-gradient(135deg,${A},${A}CC)`:pageBg,
+          color:done[0]?"#fff":textSub,
+          fontSize:12,cursor:"pointer",fontWeight:700,
+          transition:"all 0.2s",
+          boxShadow:done[0]?`0 4px 14px ${A}44`:"none"}}>
+          {done[0]?"✓ Terminé":"Marquer comme fait"}
+        </button>
       )}
-      {timer&&<RestTimer seconds={timer} a={a} onDone={()=>setTimer(null)}/>}
+      {timer&&<RestTimer seconds={timer} accent={A} onDone={()=>setTimer(null)}/>}
     </div>
   );
 }
 
-// ─── WEIGHT CHART ─────────────────────────────────────────────────────────────
-function WeightChart({entries, goal, color}){
-  if(!entries||entries.length===0) return(
-    <div style={{textAlign:"center",padding:"32px 0",color:"#333",fontSize:12,fontFamily:"'DM Sans'"}}>
-      Aucune donnée encore.
+// ─── Weight Chart ──────────────────────────────────────────────────────────────
+function WeightChart({entries,goal,color,cardBg,textSub,borderCol}){
+  if(!entries||entries.length===0)return(
+    <div style={{textAlign:"center",padding:"24px",color:textSub,fontSize:12}}>
+      Ajoute ton premier poids pour voir la courbe.
     </div>
   );
-  const W=320,H=140,pL=36,pR=16,pT=12,pB=24;
+  const W=320,H=140,pL=36,pR=20,pT=12,pB=24;
   const sorted=[...entries].sort((a,b)=>a.date.localeCompare(b.date));
-  const ws=sorted.map(e=>e.weight);
-  const allW=[...ws,goal];
+  const ws=sorted.map(e=>e.weight),allW=[...ws,goal];
   const minW=Math.floor(Math.min(...allW)-1),maxW=Math.ceil(Math.max(...allW)+1);
   const xs=i=>sorted.length===1?pL+(W-pL-pR)/2:pL+(W-pL-pR)*(i/(sorted.length-1));
   const ys=w=>pT+(H-pT-pB)*(1-(w-minW)/(maxW-minW));
-  const gy=ys(goal);
   const pts=sorted.map((e,i)=>({x:xs(i),y:ys(e.weight),w:e.weight,d:e.date}));
   const pd=pts.map((p,i)=>`${i===0?"M":"L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
   const fd=d=>{const p=d.split("-");return`${p[2]}/${p[1]}`;};
+  const gy=ys(goal);
   return(
     <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{overflow:"visible"}}>
-      <defs><linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color}/><stop offset="100%" stopColor={color} stopOpacity="0"/></linearGradient></defs>
+      <defs>
+        <linearGradient id="wgrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color}/>
+          <stop offset="100%" stopColor={color} stopOpacity="0"/>
+        </linearGradient>
+      </defs>
       {[minW,Math.round((minW+maxW)/2),maxW].map(t=>(
         <g key={t}>
-          <line x1={pL} y1={ys(t)} x2={W-pR} y2={ys(t)} stroke="#1A1A1A" strokeWidth={1}/>
-          <text x={pL-4} y={ys(t)+4} textAnchor="end" style={{fontSize:8,fill:"#444",fontFamily:"'DM Sans'"}}>{t}</text>
+          <line x1={pL} y1={ys(t)} x2={W-pR} y2={ys(t)} stroke={borderCol} strokeWidth={1}/>
+          <text x={pL-4} y={ys(t)+4} textAnchor="end" style={{fontSize:8,fill:textSub}}>{t}</text>
         </g>
       ))}
-      <line x1={pL} y1={gy} x2={W-pR} y2={gy} stroke={color} strokeWidth={1} strokeDasharray="4,3" opacity={0.5}/>
-      <text x={W-pR+3} y={gy+4} style={{fontSize:8,fill:color,fontFamily:"'DM Sans'"}}>Obj</text>
-      {pts.length>1&&<path d={`${pd} L${pts[pts.length-1].x},${H-pB} L${pts[0].x},${H-pB} Z`} fill="url(#gc)" opacity={0.12}/>}
-      {pts.length>1&&<path d={pd} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>}
+      <line x1={pL} y1={gy} x2={W-pR} y2={gy} stroke={color} strokeWidth={1.5} strokeDasharray="5,3" opacity={0.5}/>
+      <text x={W-pR+3} y={gy+4} style={{fontSize:8,fill:color}}>Obj</text>
+      {pts.length>1&&<path d={`${pd} L${pts[pts.length-1].x},${H-pB} L${pts[0].x},${H-pB} Z`} fill="url(#wgrad)" opacity={0.15}/>}
+      {pts.length>1&&<path d={pd} fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"/>}
       {pts.map((p,i)=>(
         <g key={i}>
-          <circle cx={p.x} cy={p.y} r={4} fill="#0A0A0A" stroke={color} strokeWidth={2}/>
-          <text x={p.x} y={p.y-8} textAnchor="middle" style={{fontSize:8,fill:"#666",fontFamily:"'DM Sans'"}}>{p.w}</text>
-          {(i===0||i===pts.length-1||pts.length<=4)&&<text x={p.x} y={H-pB+12} textAnchor="middle" style={{fontSize:7,fill:"#333",fontFamily:"'DM Sans'"}}>{fd(p.d)}</text>}
+          <circle cx={p.x} cy={p.y} r={5} fill={cardBg} stroke={color} strokeWidth={2.5}/>
+          <circle cx={p.x} cy={p.y} r={2} fill={color}/>
+          <text x={p.x} y={p.y-9} textAnchor="middle" style={{fontSize:8,fill:textSub}}>{p.w}</text>
+          {(i===0||i===pts.length-1||pts.length<=4)&&
+            <text x={p.x} y={H-pB+13} textAnchor="middle" style={{fontSize:7,fill:textSub}}>{fd(p.d)}</text>}
         </g>
       ))}
     </svg>
   );
 }
 
-// ─── PROGRESSION ──────────────────────────────────────────────────────────────
-function Progression({profileId, pal}){
-  const def=PROFILES[profileId];
-  const sKey=`af_prog_${profileId}`, cKey=`af_cfg_${profileId}`;
-  const [entries,setEntries]=useState(()=>LS.get(sKey,[]));
-  const [cfg,setCfg]=useState(()=>LS.get(cKey,{goal:def.defaultGoal}));
-  const [nW,setNW]=useState(""),  [nD,setND]=useState(()=>new Date().toISOString().split("T")[0]);
-  const [editG,setEditG]=useState(false), [gIn,setGIn]=useState(String(cfg.goal||def.defaultGoal));
-  const A=pal.a;
-  const save=e=>{setEntries(e);LS.set(sKey,e);};
+// ─── Progression ──────────────────────────────────────────────────────────────
+function Progression({profileId,th}){
+  const def=PROFS[profileId];
+  const sK=`af_prog_${profileId}`,cK=`af_cfg_${profileId}`;
+  const [entries,setEntries]=useState(()=>LS.get(sK,[]));
+  const [cfg,setCfg]=useState(()=>LS.get(cK,{goal:def.goal}));
+  const [nW,setNW]=useState("");
+  const [nD,setND]=useState(()=>new Date().toISOString().split("T")[0]);
+  const [editG,setEditG]=useState(false);
+  const [gIn,setGIn]=useState(String(cfg.goal||def.goal));
+  const {accent,cardBg,pageBg,textMain,textSub,border:borderCol}=th;
+  const save=e=>{setEntries(e);LS.set(sK,e);};
   const add=()=>{const w=parseFloat(nW);if(isNaN(w)||w<20||w>300)return;save([...entries.filter(e=>e.date!==nD),{date:nD,weight:w}]);setNW("");};
   const del=d=>save(entries.filter(e=>e.date!==d));
-  const saveG=()=>{const g=parseFloat(gIn);if(isNaN(g))return;const nc={...cfg,goal:g};setCfg(nc);LS.set(cKey,nc);setEditG(false);};
+  const saveG=()=>{const g=parseFloat(gIn);if(isNaN(g))return;const nc={...cfg,goal:g};setCfg(nc);LS.set(cK,nc);setEditG(false);};
   const sorted=[...entries].sort((a,b)=>b.date.localeCompare(a.date));
   const latest=sorted[0];
   const first=entries.length>0?[...entries].sort((a,b)=>a.date.localeCompare(b.date))[0]:null;
   const diff=latest&&first?+(latest.weight-first.weight).toFixed(1):null;
-  const toGoal=latest?(+(latest.weight-(cfg.goal||def.defaultGoal)).toFixed(1)):null;
+  const toGoal=latest?(+(latest.weight-(cfg.goal||def.goal)).toFixed(1)):null;
+  const card={background:cardBg,borderRadius:20,padding:16,border:`2px solid ${borderCol}`,boxShadow:"0 2px 12px rgba(0,0,0,0.05)",marginBottom:12};
   return(
     <div style={{padding:"0 16px 40px",maxWidth:480,margin:"0 auto"}}>
-      {/* Stats */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:1,marginBottom:20,border:`1px solid #1A1A1A`}} className="su">
+      {/* Stats row */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}} className="fu">
         {[
-          {l:"ACTUEL",  v:latest?`${latest.weight}kg`:"—",  c:A},
-          {l:"ÉCART",   v:diff!==null?(diff>0?`+${diff}`:diff)+"kg":"—", c:diff!==null&&diff<0?"#60FF80":diff>0?"#FF4040":"#555"},
-          {l:"OBJECTIF",v:`${cfg.goal||def.defaultGoal}kg`, c:"#888"},
+          {l:"ACTUEL",v:latest?`${latest.weight}kg`:"–",c:accent},
+          {l:"ÉCART",v:diff!==null?(diff>0?`+${diff}`:diff)+"kg":"–",c:diff!==null&&diff<0?"#22BB60":diff>0?"#E03030":textSub},
+          {l:"OBJECTIF",v:`${cfg.goal||def.goal}kg`,c:textSub},
         ].map(s=>(
-          <div key={s.l} style={{background:"#111",padding:"14px 10px",textAlign:"center",borderRight:"1px solid #1A1A1A"}}>
-            <div style={{fontSize:8,letterSpacing:3,color:"#333",marginBottom:6}}>{s.l}</div>
-            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:24,color:s.c,letterSpacing:1}}>{s.v}</div>
+          <div key={s.l} style={{...card,padding:"12px 10px",textAlign:"center",marginBottom:0}}>
+            <div style={{fontSize:8,letterSpacing:2,color:textSub,marginBottom:4,fontWeight:600}}>{s.l}</div>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:s.c,letterSpacing:1}}>{s.v}</div>
           </div>
         ))}
       </div>
-
       {/* Goal edit */}
-      <div style={{marginBottom:16,display:"flex",alignItems:"center",gap:8}} className="su">
+      <div style={{marginBottom:12,display:"flex",alignItems:"center",gap:8}} className="fu">
         {editG?(
           <>
-            <input type="number" value={gIn} onChange={e=>setGIn(e.target.value)}
-              style={{flex:1,background:"#111",border:`1px solid ${A}`,padding:"8px 10px",color:"#FFF",fontSize:13,fontFamily:"'DM Sans'"}}/>
-            <button onClick={saveG} style={{padding:"8px 14px",background:A,border:"none",color:"#000",fontFamily:"'Bebas Neue',sans-serif",fontSize:14,letterSpacing:1,cursor:"pointer"}}>OK</button>
-            <button onClick={()=>setEditG(false)} style={{padding:"8px 10px",background:"transparent",border:"1px solid #222",color:"#555",cursor:"pointer",fontSize:11}}>✕</button>
+            <input type="number" value={gIn} onChange={e=>setGIn(e.target.value)} style={{flex:1,background:pageBg,border:`2px solid ${accent}`,borderRadius:12,padding:"9px 12px",color:textMain,fontSize:13,outline:"none"}}/>
+            <button onClick={saveG} style={{padding:"9px 16px",borderRadius:12,background:accent,border:"none",color:"#fff",fontSize:12,cursor:"pointer",fontWeight:700}}>OK</button>
+            <button onClick={()=>setEditG(false)} style={{padding:"9px 12px",borderRadius:12,background:borderCol,border:"none",color:textSub,cursor:"pointer",fontSize:11}}>✕</button>
           </>
         ):(
-          <button onClick={()=>setEditG(true)} style={{background:"transparent",border:`1px solid #222`,color:"#555",padding:"7px 12px",cursor:"pointer",fontSize:11,fontFamily:"'DM Sans'"}}>
-            ✎ Objectif : {cfg.goal||def.defaultGoal}kg
+          <button onClick={()=>setEditG(true)} style={{background:cardBg,border:`2px solid ${borderCol}`,borderRadius:12,padding:"8px 14px",cursor:"pointer",fontSize:11,color:accent,fontWeight:700,display:"flex",alignItems:"center",gap:5}}>
+            <span>✎</span><span>Objectif · {cfg.goal||def.goal}kg</span>
           </button>
         )}
-        {toGoal!==null&&<div style={{fontSize:11,color:"#444",marginLeft:"auto"}}>{toGoal>0?`−${toGoal}kg restants`:"🎯 Atteint !"}</div>}
+        {toGoal!==null&&<div style={{fontSize:11,color:textSub,marginLeft:"auto",fontWeight:600}}>{toGoal>0?`−${toGoal}kg`:"Objectif atteint !"}</div>}
       </div>
-
       {/* Chart */}
-      <div style={{background:"#111",border:"1px solid #1A1A1A",padding:"16px",marginBottom:16}} className="su">
-        <div style={{fontSize:9,letterSpacing:3,color:"#333",marginBottom:12}}>COURBE DE POIDS</div>
-        <WeightChart entries={entries} goal={cfg.goal||def.defaultGoal} color={def.color}/>
+      <div style={card} className="fu">
+        <div style={{fontSize:9,letterSpacing:2,color:textSub,marginBottom:12,fontWeight:700}}>COURBE DE POIDS</div>
+        <WeightChart entries={entries} goal={cfg.goal||def.goal} color={def.profileColor} cardBg={cardBg} textSub={textSub} borderCol={borderCol}/>
       </div>
-
       {/* Add */}
-      <div style={{background:"#111",border:"1px solid #1A1A1A",padding:"14px",marginBottom:16}} className="su">
-        <div style={{fontSize:9,letterSpacing:3,color:"#333",marginBottom:10}}>AJOUTER</div>
+      <div style={card} className="fu">
+        <div style={{fontSize:9,letterSpacing:2,color:textSub,marginBottom:10,fontWeight:700}}>AJOUTER UN POIDS</div>
         <div style={{display:"flex",gap:6}}>
-          <input type="date" value={nD} onChange={e=>setND(e.target.value)}
-            style={{flex:1,background:"#0A0A0A",border:"1px solid #1A1A1A",padding:"9px 8px",color:"#FFF",fontSize:12,fontFamily:"'DM Sans'"}}/>
-          <input type="number" placeholder="kg" value={nW} onChange={e=>setNW(e.target.value)}
-            style={{width:70,background:"#0A0A0A",border:"1px solid #1A1A1A",padding:"9px 8px",color:"#FFF",fontSize:14,textAlign:"center",fontFamily:"'DM Sans'"}}/>
-          <button onClick={add} style={{padding:"9px 16px",background:A,border:"none",color:"#000",fontFamily:"'Bebas Neue',sans-serif",fontSize:18,cursor:"pointer"}}>+</button>
+          <input type="date" value={nD} onChange={e=>setND(e.target.value)} style={{flex:1,background:pageBg,border:`2px solid ${borderCol}`,borderRadius:12,padding:"9px 10px",color:textMain,fontSize:12,outline:"none"}}/>
+          <input type="number" placeholder="kg" value={nW} onChange={e=>setNW(e.target.value)} style={{width:72,background:pageBg,border:`2px solid ${borderCol}`,borderRadius:12,padding:"9px 8px",color:textMain,fontSize:14,textAlign:"center",outline:"none"}}/>
+          <button onClick={add} style={{padding:"9px 16px",borderRadius:12,background:accent,border:"none",color:"#fff",fontFamily:"'Bebas Neue'",fontSize:18,cursor:"pointer",boxShadow:`0 4px 12px ${accent}33`}}>+</button>
         </div>
       </div>
-
       {/* History */}
       {sorted.length>0&&(
-        <div style={{background:"#111",border:"1px solid #1A1A1A",padding:"14px"}} className="su">
-          <div style={{fontSize:9,letterSpacing:3,color:"#333",marginBottom:10}}>HISTORIQUE</div>
+        <div style={card} className="fu">
+          <div style={{fontSize:9,letterSpacing:2,color:textSub,marginBottom:10,fontWeight:700}}>HISTORIQUE</div>
           {sorted.slice(0,10).map((e,i)=>(
-            <div key={e.date} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0",borderBottom:i<sorted.length-1?"1px solid #141414":"none"}}>
-              <div style={{fontSize:11,color:"#444",fontFamily:"'DM Sans'"}}>{new Date(e.date+"T12:00:00").toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"})}</div>
-              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,color:A,letterSpacing:1}}>{e.weight} kg</div>
-              <button onClick={()=>del(e.date)} style={{background:"transparent",border:"none",color:"#333",cursor:"pointer",fontSize:16,padding:"0 4px"}}>×</button>
+            <div key={e.date} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0",borderBottom:i<sorted.length-1?`1.5px solid ${borderCol}`:"none"}}>
+              <div style={{fontSize:11,color:textSub,fontWeight:500}}>{new Date(e.date+"T12:00:00").toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"})}</div>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:accent,letterSpacing:1}}>{e.weight} kg</div>
+              <button onClick={()=>del(e.date)} style={{background:"none",border:"none",color:borderCol,cursor:"pointer",fontSize:18,padding:"0 4px",lineHeight:1}}>×</button>
             </div>
           ))}
         </div>
@@ -543,13 +803,12 @@ function Progression({profileId, pal}){
   );
 }
 
-// ─── WORKOUT ──────────────────────────────────────────────────────────────────
-function Workout({session, level, duration, onBack, pal}){
+// ─── Workout ──────────────────────────────────────────────────────────────────
+function Workout({session,level,duration,onBack,th}){
   const [elapsed,setElapsed]=useState(0);
   const [running,setRunning]=useState(false);
-  const startRef=useRef(null), savedRef=useRef(0), ivRef=useRef(), wlRef=useRef(null);
-  const A=pal.a;
-
+  const startRef=useRef(null),savedRef=useRef(0),ivRef=useRef(),wlRef=useRef(null);
+  const {accent,cardBg,pageBg,textMain,textSub,border:borderCol,btnText}=th;
   const reqWL=async()=>{try{if('wakeLock' in navigator)wlRef.current=await navigator.wakeLock.request('screen');}catch(e){}};
   const relWL=()=>{try{if(wlRef.current){wlRef.current.release();wlRef.current=null;}}catch(e){}};
   useEffect(()=>{
@@ -557,14 +816,8 @@ function Workout({session, level, duration, onBack, pal}){
     document.addEventListener('visibilitychange',f);
     return()=>{document.removeEventListener('visibilitychange',f);relWL();};
   },[running]);
-
-  const toggle=()=>{
-    setRunning(p=>{
-      const n=!p;
-      if(n){startRef.current=Date.now()-savedRef.current*1000;reqWL();}
-      else{savedRef.current=elapsed;clearInterval(ivRef.current);relWL();}
-      return n;
-    });
+  const toggleRun=()=>{
+    setRunning(p=>{const n=!p;if(n){startRef.current=Date.now()-savedRef.current*1000;reqWL();}else{savedRef.current=elapsed;clearInterval(ivRef.current);relWL();}return n;});
   };
   useEffect(()=>{
     if(!running)return;
@@ -573,48 +826,67 @@ function Workout({session, level, duration, onBack, pal}){
     document.addEventListener('visibilitychange',f);
     return()=>{clearInterval(ivRef.current);document.removeEventListener('visibilitychange',f);};
   },[running]);
-
   const phases=useMemo(()=>buildProgram(session,level,duration),[session,level,duration]);
   const fmt=s=>`${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+  const S=SESSIONS[session];
+  const L=LEVELS.find(l=>l.key===level);
+
+  // Phase colors — always vivid regardless of theme
+  const phaseColors=["#FF6B00","#E0306A","#2A8AE0","#22AA70"];
 
   return(
-    <div style={{minHeight:"100vh",background:pal.bg,paddingBottom:80}}>
+    <div style={{minHeight:"100vh",background:pageBg,paddingBottom:80}}>
       {/* Sticky header */}
-      <div style={{position:"sticky",top:0,zIndex:100,background:pal.bg,borderBottom:`1px solid #1A1A1A`,padding:"12px 16px"}}>
-        <div style={{display:"flex",alignItems:"center",gap:12,maxWidth:480,margin:"0 auto"}}>
-          <button onClick={onBack} style={{background:"transparent",border:"1px solid #222",color:"#555",padding:"5px 10px",cursor:"pointer",fontFamily:"'Bebas Neue',sans-serif",fontSize:14,letterSpacing:1}}>← RETOUR</button>
-          <div style={{flex:1}}>
-            {/* Accent bar */}
-            <div style={{height:2,width:32,background:A,marginBottom:4}}/>
-            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:2,color:pal.t||"#FFF",lineHeight:1}}>{SESSIONS[session].label}</div>
-            <div style={{fontSize:10,color:"#444",letterSpacing:1}}>{LEVELS.find(l=>l.key===level).label} · {duration} MIN</div>
+      <div style={{position:"sticky",top:0,zIndex:100,background:pageBg,borderBottom:`2px solid ${borderCol}`,padding:"12px 16px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,maxWidth:480,margin:"0 auto"}}>
+          <button onClick={onBack} style={{background:cardBg,border:`2px solid ${borderCol}`,borderRadius:12,padding:"7px 14px",color:textSub,fontSize:12,cursor:"pointer",fontWeight:700}}>← Retour</button>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+              <span style={{fontFamily:"'Bebas Neue'",fontSize:20,letterSpacing:2,color:accent}}>{S.label}</span>
+              <span style={{background:`${accent}18`,borderRadius:20,padding:"2px 10px",fontSize:9,color:accent,fontWeight:700}}>{L.label}</span>
+              <span style={{background:borderCol,borderRadius:20,padding:"2px 10px",fontSize:9,color:textSub,fontWeight:700}}>{duration} min</span>
+            </div>
+            <div style={{fontSize:10,color:textSub,fontWeight:500}}>{S.sub}</div>
           </div>
-          <div style={{textAlign:"right"}}>
-            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:2,color:running?A:"#333",fontFamily:"monospace"}}>{fmt(elapsed)}</div>
-            <button onClick={toggle} style={{background:running?A:"transparent",border:`1px solid ${running?A:"#222"}`,color:running?"#000":"#555",padding:"3px 10px",cursor:"pointer",fontFamily:"'Bebas Neue',sans-serif",fontSize:12,letterSpacing:1,transition:"all 0.2s"}}>{running?"⏸ PAUSE":"▶ START"}</button>
+          <div style={{textAlign:"right",flexShrink:0}}>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:20,letterSpacing:2,color:running?accent:borderCol}}>{fmt(elapsed)}</div>
+            <button onClick={toggleRun} style={{fontSize:10,padding:"4px 12px",borderRadius:8,border:`2px solid ${running?accent:borderCol}`,background:running?accent:cardBg,color:running?"#fff":textSub,cursor:"pointer",fontWeight:700,transition:"all 0.2s"}}>{running?"Pause":"Start"}</button>
           </div>
         </div>
       </div>
 
-      {/* Phases */}
-      <div style={{padding:"16px",maxWidth:480,margin:"0 auto"}}>
-        {phases.map((phase,pi)=>(
-          <div key={pi} style={{marginBottom:28}} className="su">
-            {/* Phase header */}
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:11,letterSpacing:4,color:A}}>{phase.name}</div>
-              <div style={{flex:1,height:1,background:"#1A1A1A"}}/>
-              <div style={{fontSize:10,color:"#333"}}>{phase.dur}</div>
+      {/* Phase content */}
+      <div style={{padding:"14px 16px",maxWidth:480,margin:"0 auto"}}>
+        {phases.map((phase,pi)=>{
+          const pc=phaseColors[pi%phaseColors.length];
+          return(
+            <div key={pi} style={{marginBottom:24}} className="fu">
+              {/* Phase header — colored pill */}
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                <div style={{
+                  display:"inline-flex",alignItems:"center",gap:8,
+                  background:`linear-gradient(135deg,${pc},${pc}CC)`,
+                  borderRadius:20,padding:"6px 14px",
+                  boxShadow:`0 4px 14px ${pc}44`}}>
+                  <div style={{fontFamily:"'Bebas Neue'",fontSize:14,color:"#fff",letterSpacing:3}}>{phase.name}</div>
+                </div>
+                <div style={{flex:1,height:1.5,background:borderCol}}/>
+                <div style={{fontSize:10,color:textSub,fontWeight:600}}>{phase.dur}</div>
+              </div>
+              {phase.exs.map((ex,ei)=>(
+                <ExCard key={`${pi}-${ei}`} ex={ex}
+                  accent={pc} cardBg={cardBg} pageBg={pageBg}
+                  textMain={textMain} textSub={textSub} borderCol={borderCol}/>
+              ))}
             </div>
-            {phase.exs.map((ex,ei)=><ExCard key={`${pi}-${ei}`} ex={ex} a={A} s={pal.s} b={pal.b}/>)}
-          </div>
-        ))}
+          );
+        })}
 
-        {/* Nutrition note */}
-        <div style={{borderLeft:`3px solid ${A}`,paddingLeft:12,marginTop:8}}>
-          <div style={{fontSize:9,letterSpacing:3,color:A,marginBottom:4}}>NUTRITION</div>
-          <div style={{fontSize:12,color:"#555",lineHeight:1.6}}>
-            {level==="debutant"?"1.6–1.8g de protéines/kg. Progression avant restriction calorique.":level==="intermediaire"?"−350 kcal/jour. 1.8–2g de protéines/kg. Augmente les charges en priorité.":"Maintien calorique ±100 kcal + 2–2.2g protéines/kg. Cycle carbs autour des séances."}
+        {/* Nutrition tip */}
+        <div style={{background:`linear-gradient(135deg,${accent}18,${accent}08)`,borderRadius:20,padding:16,border:`2px solid ${accent}33`,marginTop:4}}>
+          <div style={{fontSize:9,letterSpacing:2,color:accent,marginBottom:6,fontWeight:700}}>NUTRITION</div>
+          <div style={{fontSize:12,color:textSub,lineHeight:1.7}}>
+            {level==="debutant"?"1.6–1.8g de protéines/kg. La progression passe avant la restriction calorique.":level==="intermediaire"?"Vise −350 kcal/jour. 1.8–2g de protéines/kg.":"Maintien calorique ±100 kcal + 2–2.2g protéines/kg. Glucides autour des séances."}
           </div>
         </div>
       </div>
@@ -622,83 +894,93 @@ function Workout({session, level, duration, onBack, pal}){
   );
 }
 
-// ─── SESSION CONFIG ────────────────────────────────────────────────────────────
-function SessionConfig({profileId, pal, onStart}){
-  const cKey=`af_cfg_${profileId}`;
-  const saved=LS.get(cKey,{});
-  const def=PROFILES[profileId];
+// ─── Session Config ────────────────────────────────────────────────────────────
+function SessionConfig({profileId,th,onStart}){
+  const cK=`af_cfg_${profileId}`;
+  const saved=LS.get(cK,{});
+  const def=PROFS[profileId];
   const [sess,setSess]=useState("push");
-  const [lvl,setLvl]=useState(saved.level||def.defaultLevel);
-  const [dur,setDur]=useState(saved.duration||def.defaultDuration);
-  const A=pal.a;
-  const save=()=>{const c=LS.get(cKey,{});LS.set(cKey,{...c,level:lvl,duration:dur});};
+  const [lvl,setLvl]=useState(saved.level||def.level);
+  const [dur,setDur]=useState(saved.duration||def.dur);
+  const {accent,cardBg,pageBg,textMain,textSub,border:borderCol}=th;
+
+  // Vivid colors per session
+  const sessColors={push:"#FF6B00",pull:"#E0306A",legs:"#2A8AE0",full:"#22AA70"};
+
+  const save=()=>{const c=LS.get(cK,{});LS.set(cK,{...c,level:lvl,duration:dur});};
   return(
     <div style={{padding:"16px 16px 100px",maxWidth:480,margin:"0 auto"}}>
 
-      {/* SESSION SELECTOR */}
-      <div style={{marginBottom:24}} className="su">
-        <div style={{fontSize:9,letterSpacing:3,color:"#333",marginBottom:10}}>SÉANCE DU JOUR</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+      {/* Session selector — big colored cards */}
+      <div style={{marginBottom:22}} className="fu">
+        <div style={{fontSize:9,letterSpacing:3,color:textSub,marginBottom:12,fontWeight:700}}>SÉANCE DU JOUR</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
           {Object.entries(SESSIONS).map(([k,s])=>{
+            const sc=sessColors[k];
             const active=sess===k;
             return(
               <button key={k} onClick={()=>setSess(k)} style={{
-                padding:"14px 12px",cursor:"pointer",textAlign:"left",
-                border:`1px solid ${active?A:"#1A1A1A"}`,
-                background:active?`${A}14`:"#111",
-                transition:"all 0.2s"
-              }}>
-                {active&&<div style={{height:2,width:24,background:A,marginBottom:8}}/>}
-                <div style={{fontSize:9,color:active?A:"#333",marginBottom:4}}>{s.icon}</div>
-                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:2,color:active?A:"#FFF"}}>{s.label}</div>
-                <div style={{fontSize:10,color:"#444",marginTop:2}}>{s.sub}</div>
+                padding:"18px 14px",cursor:"pointer",textAlign:"left",
+                borderRadius:20,border:`2px solid ${active?sc:borderCol}`,
+                background:active?`linear-gradient(145deg,${sc},${sc}DD)`:cardBg,
+                transition:"all 0.22s",
+                transform:active?"scale(1.03)":"scale(1)",
+                boxShadow:active?`0 8px 24px ${sc}44`:"0 2px 10px rgba(0,0,0,0.05)"}}>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:26,letterSpacing:2,
+                  color:active?"#fff":textMain,lineHeight:1,marginBottom:4}}>{s.label}</div>
+                <div style={{fontSize:10,color:active?"rgba(255,255,255,0.75)":textSub,fontWeight:500}}>{s.sub}</div>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* LEVEL */}
-      <div style={{marginBottom:24}} className="su">
-        <div style={{fontSize:9,letterSpacing:3,color:"#333",marginBottom:10}}>NIVEAU</div>
-        <div style={{display:"flex",flexDirection:"column",gap:6}}>
-          {LEVELS.map(l=>{
+      {/* Level */}
+      <div style={{marginBottom:22}} className="fu">
+        <div style={{fontSize:9,letterSpacing:3,color:textSub,marginBottom:12,fontWeight:700}}>NIVEAU</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {LEVELS.map((l,li)=>{
+            const lc=["#FF9A00","#FF6B00","#E03030"][li];
             const active=lvl===l.key;
             return(
               <button key={l.key} onClick={()=>setLvl(l.key)} style={{
                 display:"flex",alignItems:"center",gap:14,
-                padding:"12px 14px",cursor:"pointer",textAlign:"left",
-                border:`1px solid ${active?A:"#1A1A1A"}`,
-                background:active?`${A}14`:"#111",
-                transition:"all 0.2s"
-              }}>
-                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:13,color:active?A:"#333",letterSpacing:2,minWidth:40}}>{l.dots}</div>
+                padding:"13px 16px",cursor:"pointer",
+                borderRadius:16,border:`2px solid ${active?lc:borderCol}`,
+                background:active?`linear-gradient(135deg,${lc}18,${lc}06)`:cardBg,
+                textAlign:"left",transition:"all 0.2s"}}>
+                <div style={{
+                  width:10,height:10,borderRadius:"50%",
+                  background:active?lc:borderCol,
+                  boxShadow:active?`0 0 8px ${lc}`:"none",
+                  flexShrink:0}}/>
                 <div style={{flex:1}}>
-                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,letterSpacing:2,color:active?"#FFF":"#555"}}>{l.label}</div>
-                  <div style={{fontSize:10,color:"#444"}}>{l.sub}</div>
+                  <div style={{fontFamily:"'Bebas Neue'",fontSize:17,letterSpacing:2,color:active?lc:textMain}}>{l.label}</div>
+                  <div style={{fontSize:10,color:textSub,fontWeight:500}}>{l.sub}</div>
                 </div>
-                {active&&<div style={{width:6,height:6,background:A,boxShadow:`0 0 6px ${A}`}}/>}
+                {active&&<div style={{width:8,height:8,borderRadius:"50%",background:lc,boxShadow:`0 0 8px ${lc}`}}/>}
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* DURATION */}
-      <div style={{marginBottom:28}} className="su">
-        <div style={{fontSize:9,letterSpacing:3,color:"#333",marginBottom:10}}>DURÉE</div>
-        <div style={{display:"flex",gap:6}}>
+      {/* Duration */}
+      <div style={{marginBottom:26}} className="fu">
+        <div style={{fontSize:9,letterSpacing:3,color:textSub,marginBottom:12,fontWeight:700}}>DURÉE</div>
+        <div style={{display:"flex",gap:8}}>
           {DURATIONS.map(d=>{
             const active=dur===d;
             return(
               <button key={d} onClick={()=>setDur(d)} style={{
                 flex:1,padding:"14px 4px",cursor:"pointer",
-                border:`1px solid ${active?A:"#1A1A1A"}`,
-                background:active?`${A}14`:"#111",
-                transition:"all 0.2s"
-              }}>
-                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:26,color:active?A:"#444"}}>{d}</div>
-                <div style={{fontSize:9,color:active?A:"#333",letterSpacing:1}}>MIN</div>
+                borderRadius:16,border:`2px solid ${active?accent:borderCol}`,
+                background:active?`linear-gradient(135deg,${accent},${accent}CC)`:cardBg,
+                transition:"all 0.2s",
+                transform:active?"scale(1.05)":"scale(1)",
+                boxShadow:active?`0 6px 18px ${accent}44`:"0 2px 10px rgba(0,0,0,0.05)"}}>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:28,color:active?"#fff":textSub}}>{d}</div>
+                <div style={{fontSize:9,color:active?"rgba(255,255,255,0.8)":textSub,fontWeight:600,letterSpacing:1}}>MIN</div>
               </button>
             );
           })}
@@ -706,69 +988,83 @@ function SessionConfig({profileId, pal, onStart}){
       </div>
 
       {/* CTA */}
-      <button onClick={()=>{save();onStart(sess,lvl,dur);}} style={{
-        width:"100%",padding:"18px",cursor:"pointer",
-        border:`2px solid ${A}`,background:A,
-        fontFamily:"'Bebas Neue',sans-serif",fontSize:24,letterSpacing:4,
-        color:"#000",transition:"all 0.2s"
-      }}>
-        LANCER LA SÉANCE {SESSIONS[sess].icon}
+      <button onClick={()=>{save();onStart(sess,lvl,dur);}} className="fu" style={{
+        width:"100%",padding:"18px",borderRadius:20,cursor:"pointer",
+        border:"none",
+        background:`linear-gradient(135deg,${sessColors[sess]},${sessColors[sess]}CC)`,
+        fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:4,
+        color:"#fff",
+        boxShadow:`0 8px 28px ${sessColors[sess]}44`,
+        transition:"all 0.2s"}}>
+        LANCER LA SÉANCE
       </button>
     </div>
   );
 }
 
-// ─── PROFIL ────────────────────────────────────────────────────────────────────
-function ProfilScreen({activeProfile, onSwitch, pal}){
+// ─── Profil Screen ─────────────────────────────────────────────────────────────
+function ProfilScreen({activeProfile,onSwitch,th}){
+  const {accent,cardBg,textMain,textSub,border:borderCol}=th;
   return(
     <div style={{padding:"16px 16px 100px",maxWidth:480,margin:"0 auto"}}>
-      <div style={{fontSize:9,letterSpacing:3,color:"#333",marginBottom:14}} className="su">PROFILS</div>
-      <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {Object.values(PROFILES).map(p=>{
+      <div style={{fontSize:9,letterSpacing:3,color:textSub,marginBottom:14,fontWeight:700}} className="fu">PROFILS</div>
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {Object.values(PROFS).map(p=>{
           const active=activeProfile===p.id;
           return(
-            <button key={p.id} onClick={()=>onSwitch(p.id)} style={{
-              display:"flex",alignItems:"center",gap:14,
+            <button key={p.id} onClick={()=>onSwitch(p.id)} className="pi" style={{
+              display:"flex",alignItems:"center",gap:16,
               padding:"18px 16px",cursor:"pointer",textAlign:"left",
-              border:`1px solid ${active?p.color:"#1A1A1A"}`,
-              background:active?`${p.color}14`:"#111",
-              transition:"all 0.2s"
-            }} className="su">
-              {active&&<div style={{position:"absolute",height:2,width:32,background:p.color}}/>}
-              <div style={{width:48,height:48,border:`2px solid ${p.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{p.emoji}</div>
-              <div style={{flex:1}}>
-                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:2,color:active?p.color:"#FFF"}}>{p.name}</div>
-                <div style={{fontSize:11,color:"#444",marginTop:2}}>Objectif : {p.defaultGoal}kg · {LEVELS.find(l=>l.key===p.defaultLevel).label}</div>
+              borderRadius:20,
+              border:`2px solid ${active?p.profileColor:borderCol}`,
+              background:active?`linear-gradient(135deg,${p.profileColor}18,${p.profileColor}06)`:cardBg,
+              transition:"all 0.25s",
+              transform:active?"scale(1.02)":"scale(1)",
+              boxShadow:active?`0 6px 20px ${p.profileColor}22`:"0 2px 10px rgba(0,0,0,0.05)"}}>
+              <div style={{
+                width:52,height:52,borderRadius:18,
+                background:`linear-gradient(135deg,${p.profileColor},${p.profileColor}88)`,
+                display:"flex",alignItems:"center",justifyContent:"center",
+                fontFamily:"'Bebas Neue'",fontSize:18,color:"#fff",letterSpacing:1,
+                flexShrink:0,boxShadow:active?`0 4px 14px ${p.profileColor}44`:"none"}}>
+                {p.name.slice(0,3).toUpperCase()}
               </div>
-              {active&&<div style={{width:8,height:8,background:p.color,boxShadow:`0 0 8px ${p.color}`}}/>}
+              <div style={{flex:1}}>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:2,color:active?p.profileColor:textMain}}>{p.name}</div>
+                <div style={{fontSize:11,color:textSub,marginTop:2,fontWeight:500}}>Objectif : {p.goal}kg · {LEVELS.find(l=>l.key===p.level).label}</div>
+              </div>
+              {active&&<div style={{width:10,height:10,borderRadius:"50%",background:p.profileColor,boxShadow:`0 0 10px ${p.profileColor}`}}/>}
             </button>
           );
         })}
       </div>
-      <div style={{marginTop:24,borderLeft:`3px solid ${pal.a}`,paddingLeft:12}} className="su">
-        <div style={{fontSize:9,letterSpacing:3,color:pal.a,marginBottom:4}}>INFO</div>
-        <div style={{fontSize:11,color:"#444",lineHeight:1.7}}>Chaque profil a son propre historique de poids et ses préférences. Données sauvegardées sur cet appareil.</div>
+      <div style={{marginTop:20,background:cardBg,borderRadius:20,padding:16,border:`2px solid ${borderCol}`,borderLeft:`4px solid ${accent}`}} className="fu">
+        <div style={{fontSize:9,letterSpacing:2,color:accent,marginBottom:6,fontWeight:700}}>INFO</div>
+        <div style={{fontSize:11,color:textSub,lineHeight:1.7}}>Chaque profil a son propre historique de poids et ses préférences. Données sauvegardées sur cet appareil.</div>
       </div>
     </div>
   );
 }
 
-// ─── BOTTOM NAV ───────────────────────────────────────────────────────────────
-function Nav({tab, setTab, a, bg}){
-  const items=[
-    {key:"seance",     label:"SÉANCE",icon:"🏋"},
-    {key:"progression",label:"POIDS", icon:"📈"},
-    {key:"profil",     label:"PROFIL",icon:"👤"},
-  ];
+// ─── Bottom Nav ────────────────────────────────────────────────────────────────
+function Nav({tab,setTab,th}){
+  const {accent,pageBg,textSub,border:borderCol}=th;
+  const items=[{key:"seance",label:"Séance"},{key:"progression",label:"Poids"},{key:"profil",label:"Profil"}];
   return(
-    <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:200,background:`${bg}F8`,borderTop:"1px solid #1A1A1A",display:"flex",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)"}}>
+    <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:200,background:pageBg,borderTop:`2px solid ${borderCol}`,display:"flex"}}>
       {items.map(it=>{
         const active=tab===it.key;
         return(
-          <button key={it.key} onClick={()=>setTab(it.key)} style={{flex:1,padding:"10px 4px 14px",background:"transparent",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-            <span style={{fontSize:18,opacity:active?1:0.3}}>{it.icon}</span>
-            <span style={{fontSize:9,letterSpacing:2,color:active?a:"#333",fontFamily:"'Bebas Neue',sans-serif",fontWeight:active?700:400}}>{it.label}</span>
-            {active&&<div style={{width:20,height:2,background:a}}/>}
+          <button key={it.key} onClick={()=>setTab(it.key)} style={{
+            flex:1,padding:"11px 4px 14px",background:"transparent",
+            border:"none",cursor:"pointer",
+            display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+            <span style={{
+              fontSize:9,letterSpacing:2,fontWeight:active?700:500,
+              color:active?accent:textSub,transition:"color 0.2s"}}>
+              {it.label.toUpperCase()}
+            </span>
+            {active&&<div style={{width:22,height:3,borderRadius:2,background:accent,boxShadow:`0 0 6px ${accent}88`}}/>}
           </button>
         );
       })}
@@ -776,140 +1072,191 @@ function Nav({tab, setTab, a, bg}){
   );
 }
 
-// ─── SECRET PANEL ─────────────────────────────────────────────────────────────
-function SecretPanel({onClose, pal, setPal}){
-  const [fam,setFam]=useState("Tous");
-  const filtered=fam==="Tous"?PALETTES:PALETTES.filter(p=>p.family===fam);
-  const pick=p=>{setPal(p);LS.set("af_pal",p);};
+// ─── Theme Panel ──────────────────────────────────────────────────────────────
+const PRESETS=[
+  {name:"Soleil",    pageBg:"#FFF8F2",cardBg:"#FFFFFF",accent:"#FF6B00",btnText:"#FFFFFF",textMain:"#1A1008",textSub:"#9A7060",border:"#F0E0D0"},
+  {name:"Doré",      pageBg:"#FFFDF0",cardBg:"#FFFFFF",accent:"#CC8800",btnText:"#FFFFFF",textMain:"#1A1400",textSub:"#8A7040",border:"#F0E8C0"},
+  {name:"Rosé",      pageBg:"#FFF2F6",cardBg:"#FFFFFF",accent:"#E0306A",btnText:"#FFFFFF",textMain:"#1A0810",textSub:"#9A5070",border:"#F0D0DA"},
+  {name:"Menthe",    pageBg:"#F2FFF8",cardBg:"#FFFFFF",accent:"#1A9A6A",btnText:"#FFFFFF",textMain:"#081A10",textSub:"#508A70",border:"#C8F0E0"},
+  {name:"Ciel",      pageBg:"#F2F8FF",cardBg:"#FFFFFF",accent:"#1A6AE0",btnText:"#FFFFFF",textMain:"#080C1A",textSub:"#507090",border:"#C8D8F0"},
+  {name:"Lavande",   pageBg:"#F8F2FF",cardBg:"#FFFFFF",accent:"#8040E0",btnText:"#FFFFFF",textMain:"#0C081A",textSub:"#705090",border:"#E0C8F8"},
+  {name:"Sombre",    pageBg:"#14141C",cardBg:"#1E1E28",accent:"#FF6B00",btnText:"#FFFFFF",textMain:"#FFFFFF",textSub:"#88889A",border:"#2C2C3C"},
+  {name:"Nuit",      pageBg:"#0A0E1A",cardBg:"#141820",accent:"#4A8AFF",btnText:"#FFFFFF",textMain:"#FFFFFF",textSub:"#6080A0",border:"#1E2840"},
+  {name:"Crème",     pageBg:"#FAF7F0",cardBg:"#FFFFFF",accent:"#AA7040",btnText:"#FFFFFF",textMain:"#1A1208",textSub:"#8A7060",border:"#EAE0D0"},
+];
+
+function ThemePanel({onClose,th,setTh}){
+  const [local,setLocal]=useState({...th});
+  const apply=p=>setLocal({...p});
+  const confirm=()=>{setTh({...local});LS.set("af_theme",local);onClose();};
+  const fields=[
+    {key:"pageBg",l:"Fond de page"},
+    {key:"cardBg",l:"Fond des cartes"},
+    {key:"accent",l:"Couleur accent"},
+    {key:"btnText",l:"Texte des boutons"},
+    {key:"textMain",l:"Texte principal"},
+    {key:"textSub",l:"Texte secondaire"},
+    {key:"border",l:"Bordures"},
+  ];
   return(
-    <div style={{position:"fixed",inset:0,zIndex:999,display:"flex",alignItems:"flex-end",background:"#00000099"}} onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{width:"100%",background:"#0F0F0F",border:"1px solid #1A1A1A",borderRadius:"12px 12px 0 0",padding:"18px 14px 32px",animation:"slideUp 0.3s ease",maxHeight:"78vh",display:"flex",flexDirection:"column"}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexShrink:0}}>
+    <div style={{position:"fixed",inset:0,zIndex:999,display:"flex",alignItems:"flex-end",background:"rgba(0,0,0,0.35)"}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{
+        width:"100%",background:local.pageBg,
+        borderRadius:"24px 24px 0 0",
+        padding:"8px 16px 36px",
+        border:`2px solid ${local.border}`,borderBottom:"none",
+        maxHeight:"88vh",display:"flex",flexDirection:"column",
+        boxShadow:"0 -8px 40px rgba(0,0,0,0.18)"}}>
+        {/* Handle */}
+        <div style={{width:36,height:4,borderRadius:2,background:local.border,margin:"10px auto 14px"}}/>
+        {/* Header */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexShrink:0}}>
           <div>
-            <div style={{height:2,width:24,background:pal.a,marginBottom:6}}/>
-            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:3,color:pal.a}}>APPARENCE</div>
-            <div style={{fontSize:10,color:"#333"}}>5 taps sur le logo · {PALETTES.length} palettes</div>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:3,color:local.accent}}>APPARENCE</div>
+            <div style={{fontSize:10,color:local.textSub,fontWeight:500}}>5 taps sur le logo pour ouvrir</div>
           </div>
-          <button onClick={onClose} style={{background:"transparent",border:"1px solid #1A1A1A",color:"#444",padding:"5px 10px",cursor:"pointer",fontFamily:"'Bebas Neue',sans-serif",fontSize:13,letterSpacing:1}}>FERMER</button>
+          <button onClick={confirm} style={{
+            padding:"10px 20px",borderRadius:14,
+            background:local.accent,border:"none",
+            color:local.btnText,fontFamily:"'Bebas Neue'",
+            fontSize:15,letterSpacing:1,cursor:"pointer",
+            boxShadow:`0 4px 14px ${local.accent}44`}}>
+            APPLIQUER
+          </button>
         </div>
-        <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:10,marginBottom:10,flexShrink:0}}>
-          {["Tous",...FAM].map(f=>(
-            <button key={f} onClick={()=>setFam(f)} style={{flexShrink:0,padding:"4px 10px",cursor:"pointer",background:fam===f?pal.a:"transparent",border:`1px solid ${fam===f?pal.a:"#1A1A1A"}`,color:fam===f?"#000":"#444",fontSize:9,fontFamily:"'Bebas Neue',sans-serif",letterSpacing:1,transition:"all 0.2s"}}>{f}</button>
-          ))}
-        </div>
+
         <div style={{overflowY:"auto",flex:1}}>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
-            {filtered.map(p=>{
-              const active=pal.label===p.label;
+          {/* Presets */}
+          <div style={{fontSize:9,letterSpacing:2,color:local.textSub,marginBottom:10,fontWeight:700}}>THÈMES</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:22}}>
+            {PRESETS.map(p=>{
+              const active=local.accent===p.accent&&local.pageBg===p.pageBg;
               return(
-                <button key={p.label} onClick={()=>pick(p)} style={{padding:"8px 4px 6px",cursor:"pointer",border:`2px solid ${active?p.a:"#1A1A1A"}`,background:"transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:4,transition:"all 0.2s"}}>
-                  <div style={{width:44,height:40,background:p.bg,border:`1px solid ${p.b}`,overflow:"hidden",position:"relative",boxShadow:active?`0 0 8px ${p.a}55`:"none"}}>
-                    <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:p.a}}/>
-                    <div style={{padding:"6px 5px 0"}}>
-                      <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:14,color:p.t||"#FFF",letterSpacing:1,lineHeight:1}}>PUSH</div>
-                      <div style={{height:1,width:"60%",background:p.a,marginTop:3}}/>
-                    </div>
+                <button key={p.name} onClick={()=>apply(p)} style={{
+                  padding:"10px 6px",borderRadius:16,cursor:"pointer",
+                  border:`2px solid ${active?p.accent:p.border}`,
+                  background:p.pageBg,
+                  transition:"all 0.2s",
+                  transform:active?"scale(1.04)":"scale(1)",
+                  boxShadow:active?`0 4px 14px ${p.accent}33`:"none"}}>
+                  <div style={{display:"flex",gap:4,justifyContent:"center",marginBottom:5}}>
+                    {[p.accent,p.cardBg,p.pageBg].map((c,i)=>(
+                      <div key={i} style={{width:14,height:14,borderRadius:"50%",background:c,border:`1.5px solid ${p.border}`}}/>
+                    ))}
                   </div>
-                  <span style={{fontSize:9,color:active?p.a:"#333",letterSpacing:0.5,fontFamily:"'DM Sans'"}}>{p.label}</span>
+                  <div style={{fontSize:9,color:p.textSub,fontWeight:700,textAlign:"center"}}>{p.name}</div>
                 </button>
               );
             })}
           </div>
-        </div>
-        {pal.label&&(
-          <div style={{marginTop:10,padding:"8px 10px",borderLeft:`3px solid ${pal.a}`,flexShrink:0}}>
-            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:14,letterSpacing:2,color:pal.a}}>{pal.label}</div>
-            <div style={{fontSize:9,color:"#444"}}>{pal.family}</div>
+
+          {/* Custom */}
+          <div style={{fontSize:9,letterSpacing:2,color:local.textSub,marginBottom:10,fontWeight:700}}>PERSONNALISER</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {fields.map(f=>(
+              <div key={f.key} style={{
+                display:"flex",alignItems:"center",gap:12,
+                background:local.cardBg,borderRadius:16,
+                padding:"10px 14px",border:`2px solid ${local.border}`}}>
+                <input type="color" value={local[f.key]}
+                  onChange={e=>setLocal(p=>({...p,[f.key]:e.target.value}))}
+                  style={{width:36,height:36,borderRadius:10,border:`2px solid ${local.border}`,cursor:"pointer",padding:2,background:"transparent"}}/>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:12,color:local.textMain,fontWeight:600}}>{f.l}</div>
+                  <div style={{fontSize:10,color:local.textSub,fontFamily:"monospace"}}>{local[f.key]}</div>
+                </div>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
 }
 
-// ─── APP ──────────────────────────────────────────────────────────────────────
+// ─── App ──────────────────────────────────────────────────────────────────────
 function App(){
   const [profile,setProfile]=useState(()=>LS.get("af_profile","miovida"));
   const [tab,setTab]=useState("seance");
   const [workout,setWorkout]=useState(null);
   const [taps,setTaps]=useState(0);
-  const [secret,setSecret]=useState(false);
-  const [pal,setPal]=useState(()=>LS.get("af_pal",PALETTES[0]));
-  const [installBanner,setInstallBanner]=useState(false);
+  const [themePanel,setThemePanel]=useState(false);
+  const [th,setThRaw]=useState(()=>LS.get("af_theme",DEFAULT_THEME));
   const tapTimer=useRef();
-  const P=PROFILES[profile];
-  const A=pal.a;
+  const P=PROFS[profile];
+  const setTh=t=>{setThRaw(t);LS.set("af_theme",t);};
 
   useEffect(()=>{
     if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
-    const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
-    const isStandalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone;
-    if(isIOS&&!isStandalone&&!LS.get('af_install',false)) setTimeout(()=>setInstallBanner(true),2000);
-  },[]);
+    document.body.style.background=th.pageBg;
+  },[th.pageBg]);
 
   const logoTap=()=>{
-    const n=taps+1; setTaps(n); clearTimeout(tapTimer.current);
-    if(n>=5){setSecret(true);setTaps(0);}
+    const n=taps+1;setTaps(n);clearTimeout(tapTimer.current);
+    if(n>=5){setThemePanel(true);setTaps(0);}
     else tapTimer.current=setTimeout(()=>setTaps(0),1500);
   };
-
   const switchProfile=id=>{setProfile(id);LS.set("af_profile",id);setTab("seance");setWorkout(null);};
 
-  if(workout) return <Workout {...workout} pal={pal} onBack={()=>setWorkout(null)}/>;
+  if(workout) return <Workout {...workout} th={th} onBack={()=>setWorkout(null)}/>;
 
   return(
-    <div style={{minHeight:"100vh",background:pal.bg}}>
-      {/* HEADER — FORGE STYLE */}
-      <div style={{background:pal.bg,borderBottom:"1px solid #1A1A1A",padding:"16px 16px 12px",position:"sticky",top:0,zIndex:100}}>
+    <div style={{minHeight:"100vh",background:th.pageBg}}>
+      {/* Header */}
+      <div style={{background:th.pageBg,borderBottom:`2px solid ${th.border}`,padding:"18px 16px 14px",position:"sticky",top:0,zIndex:100}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",maxWidth:480,margin:"0 auto"}}>
           {/* Logo */}
           <div onClick={logoTap} style={{cursor:"default",userSelect:"none",position:"relative"}}>
-            <div style={{height:2,width:32,background:A,marginBottom:5}}/>
-            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:26,letterSpacing:4,lineHeight:1,color:pal.t||"#FFF"}}>
-              ABDELLA<span style={{color:A}}>FIT</span>
+            <div style={{height:3,width:32,background:`linear-gradient(90deg,${th.accent},${th.accent}55)`,borderRadius:3,marginBottom:5}}/>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:4,lineHeight:1,color:th.textMain}}>
+              ABDELLA<span style={{color:th.accent}}>FIT</span>
             </div>
             {taps>0&&taps<5&&(
-              <div style={{position:"absolute",top:-4,right:-10,width:14,height:14,background:A,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,color:"#000",fontWeight:700,fontFamily:"'DM Sans'"}}>{5-taps}</div>
+              <div style={{position:"absolute",top:-4,right:-12,width:16,height:16,borderRadius:"50%",background:th.accent,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,color:"#fff",fontWeight:700}}>{5-taps}</div>
             )}
           </div>
-          {/* Profile pill */}
-          <button onClick={()=>setTab("profil")} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 12px",border:`1px solid ${P.color}44`,background:`${P.color}14`,cursor:"pointer"}}>
-            <span style={{fontSize:14}}>{P.emoji}</span>
-            <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:14,letterSpacing:2,color:P.color}}>{P.name.toUpperCase()}</span>
+          {/* Profile button */}
+          <button onClick={()=>setTab("profil")} style={{
+            display:"flex",alignItems:"center",gap:8,
+            padding:"8px 16px",borderRadius:20,
+            background:`linear-gradient(135deg,${P.profileColor}18,${P.profileColor}08)`,
+            border:`2px solid ${P.profileColor}44`,
+            cursor:"pointer",transition:"all 0.2s"}}>
+            <div style={{width:8,height:8,borderRadius:"50%",background:P.profileColor,boxShadow:`0 0 6px ${P.profileColor}`}}/>
+            <span style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:2,color:P.profileColor}}>{P.name.toUpperCase()}</span>
           </button>
         </div>
       </div>
 
-      {/* CONTENT */}
+      {/* Content */}
       <div style={{paddingTop:8}}>
-        {tab==="seance"&&<SessionConfig profileId={profile} pal={pal} onStart={(s,l,d)=>setWorkout({session:s,level:l,duration:d})}/>}
+        {tab==="seance"&&<SessionConfig profileId={profile} th={th} onStart={(s,l,d)=>setWorkout({session:s,level:l,duration:d})}/>}
         {tab==="progression"&&(
-          <div style={{paddingTop:16}}>
-            <div style={{padding:"0 16px 14px",maxWidth:480,margin:"0 auto"}}>
-              <div style={{height:2,width:24,background:P.color,marginBottom:5}}/>
-              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:2,color:P.color}}>{P.name.toUpperCase()}</div>
-              <div style={{fontSize:10,color:"#444",letterSpacing:1}}>SUIVI DU POIDS</div>
+          <div>
+            <div style={{padding:"16px 16px 14px",maxWidth:480,margin:"0 auto"}}>
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <div style={{
+                  width:48,height:48,borderRadius:16,
+                  background:`linear-gradient(135deg,${P.profileColor},${P.profileColor}AA)`,
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  fontFamily:"'Bebas Neue'",fontSize:16,color:"#fff",letterSpacing:1,
+                  boxShadow:`0 4px 14px ${P.profileColor}44`}}>
+                  {P.name.slice(0,3).toUpperCase()}
+                </div>
+                <div>
+                  <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:2,color:P.profileColor}}>{P.name.toUpperCase()}</div>
+                  <div style={{fontSize:10,color:th.textSub,fontWeight:500,letterSpacing:1}}>SUIVI DU POIDS</div>
+                </div>
+              </div>
             </div>
-            <Progression profileId={profile} pal={pal}/>
+            <Progression profileId={profile} th={th}/>
           </div>
         )}
-        {tab==="profil"&&<ProfilScreen activeProfile={profile} onSwitch={switchProfile} pal={pal}/>}
+        {tab==="profil"&&<ProfilScreen activeProfile={profile} onSwitch={switchProfile} th={th}/>}
       </div>
 
-      <Nav tab={tab} setTab={setTab} a={A} bg={pal.bg}/>
-
-      {/* iOS install banner */}
-      {installBanner&&(
-        <div style={{position:"fixed",bottom:70,left:12,right:12,zIndex:300,background:"#111",border:`1px solid ${A}44`,padding:"14px",boxShadow:"0 4px 24px #00000088"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:14,letterSpacing:2,color:A}}>📲 INSTALLER L'APP</div>
-            <button onClick={()=>{setInstallBanner(false);LS.set('af_install',true);}} style={{background:"transparent",border:"none",color:"#444",cursor:"pointer",fontSize:16}}>×</button>
-          </div>
-          <div style={{fontSize:11,color:"#555",lineHeight:1.6}}>Tap <strong style={{color:"#FFF"}}>Partager ⬆</strong> → <strong style={{color:"#FFF"}}>"Sur l'écran d'accueil"</strong></div>
-        </div>
-      )}
-
-      {secret&&<SecretPanel onClose={()=>setSecret(false)} pal={pal} setPal={p=>{setPal(p);LS.set("af_pal",p);}}/>}
+      <Nav tab={tab} setTab={setTab} th={th}/>
+      {themePanel&&<ThemePanel onClose={()=>setThemePanel(false)} th={th} setTh={setTh}/>}
     </div>
   );
 }
